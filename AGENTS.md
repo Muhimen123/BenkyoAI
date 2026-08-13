@@ -8,24 +8,34 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-# Benkyo AI Architecture & File Structure
+# BenkyoAI Architecture & Product Guidelines
 
-This repository is an AI-powered study helper application using Next.js App Router, Tailwind CSS v4, and Google Gemini SDK (`@google/genai`).
+## Overview
+**BenkyoAI** is a local-first, Bring Your Own Key (BYOK) personal AI study helper designed for active learning. There are **no user accounts, logins, or backend user databases**. Everything lives locally in the browser. 
+
+## Key Product Concepts
+1. **BYOK Onboarding**: First-run experience walks users through getting an AI provider API key, validating it inline, and storing it securely in `localStorage`.
+2. **Central Library & Multiple Vaults**: The central library contains **many Vaults** (each organizing materials, roadmaps, topics, subtopics, and session history).
+3. **Adaptive Roadmaps & Practice**: Users input topics/materials, purpose (exam, project, job, curiosity), and deadlines. Generates structured trees (**Roadmap → Topics → Subtopics**) with mastery tracking, explanation depth controls, MCQ/short-answer practice with mistake categorization, and "explain back" checkpoints.
+4. **Active Recall & Exam Night Revision**: Session-wise, milestone-wise, and a dedicated **Exam Night Revision** mode for vault-wide review with weak points blended inline.
+5. **Memory Across Sessions**: End-of-session summaries track progress, struggled points, and growth callouts, opening future sessions with targeted follow-ups.
 
 ## File Structure (`src/`)
 
 ```
 src/
 ├── app/
-│   ├── page.tsx                 # Landing / input page (paste material or topic)
+│   ├── page.tsx                 # Landing / onboarding / input page
 │   ├── layout.tsx
 │   ├── globals.css
 │   │
 │   ├── study/
 │   │   └── [sessionId]/
-│   │       └── page.tsx         # Main study view: summary + roadmap + chat
+│   │     │   └── page.tsx       # Main study view: summary + roadmap + chat
 │   │
 │   └── api/
+│       ├── models/
+│       │   └── route.ts         # POST/GET → list Gemini models
 │       ├── summarize/
 │       │   └── route.ts         # POST → takes material, returns summary (Gemini)
 │       ├── roadmap/
@@ -50,9 +60,10 @@ src/
 ```
 
 ## Guidelines for Coding Agents
-- **AI Integration**: Use Google Gemini SDK (`@google/genai`) configured via `GEMINI_API_KEY` in `.env.local`.
+- **AI Integration**: Use Google Gemini SDK (`@google/genai`) configured via client BYOK or `GEMINI_API_KEY` dev fallback.
 - **State Management**: Use Zustand (`src/store/useStudyStore.ts`) for managing active study sessions, summaries, roadmaps, and chat history.
-- **Styling**: Use Tailwind CSS v4 and React 19.
+- **Styling**: Use Tailwind CSS v4 and React 19. Clean editorial design with calm neutral/pastel tones and DM Serif Display for wordmarks.
+- **Mobile-First**: Ensure full responsiveness across all screens (onboarding, dashboard, central library with multiple vaults, subtopic detail, active recall, session summary).
 
 ## Available Agent Skills & MCP
 
@@ -65,4 +76,3 @@ src/
 ### MCP (Model Context Protocol)
 - **Next.js Devtools (`next-devtools` / `/_next/mcp`)**: Running Next.js dev server exposes runtime diagnostics, route info, build status, cache management, and custom MCP tools. Use `next_2d_devtools_index`, `next_2d_devtools_call`, etc.
 - **MCP Gateway (`mcp`, `mcpScript`)**: Manage servers, search tools, inspect schemas, and execute single or multi-call scripts across MCP tools.
-

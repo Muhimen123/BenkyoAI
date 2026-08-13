@@ -92,14 +92,21 @@ export async function listVaultContents(
 }
 
 /**
- * Read text content of a file from the vault by its path.
+ * Read raw File object from the vault by its path (preserves binary files like PDFs, images, etc.).
  */
-export async function readFileContent(path: string): Promise<string> {
+export async function getVaultFile(path: string): Promise<File> {
   const root = await getOpfsRoot();
   const { dirPath, name } = splitPath(path);
   const targetDir = dirPath ? await getDirectoryHandleByPath(root, dirPath, false) : root;
   const fileHandle = await targetDir.getFileHandle(name, { create: false });
-  const file = await fileHandle.getFile();
+  return await fileHandle.getFile();
+}
+
+/**
+ * Read text content of a file from the vault by its path.
+ */
+export async function readFileContent(path: string): Promise<string> {
+  const file = await getVaultFile(path);
   return await file.text();
 }
 
@@ -147,13 +154,11 @@ export async function importFiles(files: FileList | File[]): Promise<number> {
  * Export/download a vault file to the user's local machine.
  */
 export async function exportFileToLocal(path: string): Promise<void> {
-  const content = await readFileContent(path);
-  const { name } = splitPath(path);
-  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
+  const file = await getVaultFile(path);
+  const url = URL.createObjectURL(file);
   const a = document.createElement('a');
   a.href = url;
-  a.download = name;
+  a.download = file.name;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -250,4 +255,3 @@ export async function moveVaultEntry(oldPath: string, newPath: string): Promise<
   await copyEntryRecursive(root, normalizedOld, normalizedNew);
   await deleteVaultEntry(normalizedOld);
 }
-

@@ -6,6 +6,9 @@ export default function TestGeminiPage() {
   const [apiKey, setApiKey] = useState<string>('');
   const [inputKey, setInputKey] = useState<string>('');
   const [hasKey, setHasKey] = useState<boolean>(false);
+  const [models, setModels] = useState<string[]>([]);
+  const [selectedModel, setSelectedModel] = useState<string>('gemini-3.5-flash-lite');
+  const [loadingModels, setLoadingModels] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [prompt, setPrompt] = useState<string>('hello');
   const [aiResponse, setAiResponse] = useState<string>('');
@@ -16,23 +19,49 @@ export default function TestGeminiPage() {
     if (stored) {
       setApiKey(stored);
       setHasKey(true);
+      fetchModels(stored);
     }
   }, []);
+
+  const fetchModels = async (key?: string) => {
+    setLoadingModels(true);
+    try {
+      const res = await fetch('/api/models', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: key }),
+      });
+      const data = await res.json();
+      if (data.success && data.models && data.models.length > 0) {
+        setModels(data.models);
+        if (!data.models.includes(selectedModel)) {
+          setSelectedModel(data.models[0]);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch models:', err);
+    } finally {
+      setLoadingModels(false);
+    }
+  };
 
   const handleSaveKey = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputKey.trim()) return;
-    localStorage.setItem('gemini_api_key', inputKey.trim());
-    setApiKey(inputKey.trim());
+    const newKey = inputKey.trim();
+    localStorage.setItem('gemini_api_key', newKey);
+    setApiKey(newKey);
     setHasKey(true);
     setInputKey('');
     setError('');
+    fetchModels(newKey);
   };
 
   const handleClearKey = () => {
     localStorage.removeItem('gemini_api_key');
     setApiKey('');
     setHasKey(false);
+    setModels([]);
     setAiResponse('');
     setError('');
   };
@@ -46,7 +75,7 @@ export default function TestGeminiPage() {
       const res = await fetch('/api/test-gemini', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, apiKey }),
+        body: JSON.stringify({ prompt, apiKey, model: selectedModel }),
       });
 
       const data = await res.json();
@@ -68,7 +97,7 @@ export default function TestGeminiPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight mb-2">Gemini AI Test Page</h1>
           <p className="text-neutral-400">
-            Verify your Google Gemini API key and test AI connectivity.
+            Verify your Google Gemini API key, select a Gemini 3 family model, and test AI connectivity.
           </p>
         </div>
 
@@ -112,6 +141,30 @@ export default function TestGeminiPage() {
               >
                 Change Key
               </button>
+            </div>
+
+            <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 shadow-xl space-y-4">
+              <h2 className="text-xl font-semibold">Gemini 3 Model Selection</h2>
+              <div>
+                <label className="block text-sm text-neutral-400 mb-2">
+                  Select Gemini 3 Model {loadingModels && <span className="text-xs text-indigo-400 ml-2">(Fetching models...)</span>}
+                </label>
+                <select
+                  value={selectedModel}
+                  onChange={(e) => setSelectedModel(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-3 text-neutral-100 focus:outline-none focus:border-indigo-500 cursor-pointer"
+                >
+                  {models.length > 0 ? (
+                    models.map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="gemini-3.5-flash-lite">gemini-3.5-flash-lite</option>
+                  )}
+                </select>
+              </div>
             </div>
 
             <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-6 shadow-xl space-y-4">

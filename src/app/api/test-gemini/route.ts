@@ -6,8 +6,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const prompt = body.prompt || 'hello';
     const apiKey = body.apiKey;
+    const model = body.model || 'gemini-2.5-flash';
 
-    const result = await generateGeminiResponse(prompt, apiKey);
+    const result = await generateGeminiResponse(prompt, apiKey, model);
 
     return NextResponse.json({ success: true, response: result });
   } catch (error: any) {

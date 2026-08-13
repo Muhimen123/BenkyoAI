@@ -85,7 +85,7 @@ export default function ParserTestPage() {
   useEffect(() => {
     loadVault();
     // Load API key from local storage if stored by onboarding
-    const storedKey = localStorage.getItem('benkyo_gemini_api_key');
+    const storedKey = localStorage.getItem('gemini_api_key');
     if (storedKey) {
       setApiKey(storedKey);
     }
@@ -103,13 +103,9 @@ export default function ParserTestPage() {
         if (!selectedVaultPath) {
           throw new Error('Please select a file from the OPFS vault.');
         }
-        // Read file content from vault using vault store / utils
-        const { readFileContent } = await import('../../lib/vault');
-        const content = await readFileContent(selectedVaultPath);
-        // Create a synthetic File or pass content string
-        inputToParse = new File([content], selectedVaultPath.split('/').pop() || 'file.txt', {
-          type: 'text/plain',
-        });
+        // Read raw binary File object directly from OPFS vault to preserve binary files (e.g. PDFs)
+        const { getVaultFile } = await import('../../lib/vault');
+        inputToParse = await getVaultFile(selectedVaultPath);
       } else if (inputSourceMode === 'paste') {
         if (!pastedTextOrUrl.trim()) {
           throw new Error('Please enter text or a YouTube URL to parse.');
@@ -264,7 +260,7 @@ export default function ParserTestPage() {
             {inputSourceMode === 'upload' && (
               <div className="flex flex-col gap-2">
                 <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                  Select a local file (Text, Markdown, PDF stub, PPTX stub):
+                  Select a local file (Text, Markdown, PDF, PPTX):
                 </div>
                 <input
                   type="file"
@@ -300,15 +296,15 @@ export default function ParserTestPage() {
                 <option value="auto">Auto-Detect (Based on input)</option>
                 <option value="text">Plain Text / Markdown / Code</option>
                 <option value="youtube">YouTube Transcript (Stub)</option>
-                <option value="pdf">PDF Document (Stub)</option>
+                <option value="pdf">PDF Document</option>
                 <option value="pptx">PowerPoint Presentation (Stub)</option>
               </select>
             </div>
 
             <div className="flex items-center justify-between p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950">
               <div>
-                <div className="text-sm font-medium">✨ AI-Powered Cleanup</div>
-                <div className="text-xs text-zinc-500 dark:text-zinc-400">Use Gemini to format and clean extracted text</div>
+                <div className="text-sm font-medium">✨ AI-Powered Cleanup / Synthesis</div>
+                <div className="text-xs text-zinc-500 dark:text-zinc-400 font-normal">Use Gemini to generate comprehensive Markdown notes</div>
               </div>
               <input
                 type="checkbox"

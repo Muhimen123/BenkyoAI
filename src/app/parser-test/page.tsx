@@ -295,7 +295,7 @@ export default function ParserTestPage() {
               >
                 <option value="auto">Auto-Detect (Based on input)</option>
                 <option value="text">Plain Text / Markdown / Code</option>
-                <option value="youtube">YouTube Transcript (Stub)</option>
+                <option value="youtube">YouTube Transcript & Study Notes</option>
                 <option value="pdf">PDF Document</option>
                 <option value="pptx">PowerPoint Presentation (Stub)</option>
               </select>

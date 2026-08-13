@@ -54,3 +54,15 @@ src/
 - **State Management**: Use Zustand (`src/store/useStudyStore.ts`) for managing active study sessions, summaries, roadmaps, and chat history.
 - **Styling**: Use Tailwind CSS v4 and React 19.
 
+## Available Agent Skills & MCP
+
+### Skills
+- **`next-dev-loop`**: Verify Next.js runtime behavior after editing app code using Next.js MCP (`/_next/mcp`) and browser automation (`agent-browser`).
+- **`task-driven-development`**: Use for non-trivial coding tasks (multi-step features, refactors, bug hunts, migrations) — plan work, get user approval, persist as a task list file, and keep updated.
+- **`find-skills`**: Discover and install agent skills when looking for new capabilities.
+- **`mcp-scripting`**: Write mcpScript JavaScript for discovering, inspecting, and calling MCP tools in batches.
+
+### MCP (Model Context Protocol)
+- **Next.js Devtools (`next-devtools` / `/_next/mcp`)**: Running Next.js dev server exposes runtime diagnostics, route info, build status, cache management, and custom MCP tools. Use `next_2d_devtools_index`, `next_2d_devtools_call`, etc.
+- **MCP Gateway (`mcp`, `mcpScript`)**: Manage servers, search tools, inspect schemas, and execute single or multi-call scripts across MCP tools.
+

@@ -6,6 +6,13 @@ const nextConfig: NextConfig = {
       canvas: "./src/lib/empty-module.js",
     },
   },
+  webpack(config) {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      canvas: false,
+    };
+    return config;
+  },
 };
 
 export default nextConfig;

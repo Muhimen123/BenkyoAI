@@ -251,9 +251,9 @@ export async function reexplain(
   title: string,
   mode: ExplainMode,
 ): Promise<string> {
-  return request<{ subtopicId: string; mode: ExplainMode }, string>(
+  return request<{ subtopicId: string; title: string; mode: ExplainMode }, string>(
     "/api/chat",
-    { subtopicId, mode },
+    { subtopicId, title, mode },
     () => {
       if (mode === "simpler")
         return `Plainly: ${title.toLowerCase()} is a rule for deciding what happens next, and it only works while its one condition holds. Strip everything else away and that's the whole idea.`;

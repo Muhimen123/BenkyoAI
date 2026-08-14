@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { KeyRound } from "lucide-react";
 
+import { GitHubLink } from "@/components/shell/GitHubLink";
 import { ByokSetup } from "@/components/byok/ByokSetup";
 import { MemoryStrip, RoadmapPreview } from "@/components/onboarding/RoadmapPreview";
 import {
@@ -170,7 +171,8 @@ export default function OnboardingPage() {
       </div>
 
       <div className="relative mx-auto max-w-6xl px-5 pt-10 pb-16 sm:px-8 sm:pt-14 lg:pt-20">
-        <header className="flex items-center justify-end gap-4">
+        <header className="flex items-center justify-between gap-4">
+          <GitHubLink />
           <p className="label-data hidden text-ink-faint sm:block">
             No accounts · Runs on your key
           </p>

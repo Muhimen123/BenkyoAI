@@ -8,6 +8,7 @@ import { useStudyStore } from "@/store/useStudyStore";
 import { cn } from "@/lib/utils";
 import { Wordmark } from "./Wordmark";
 import { KeyStatus } from "./KeyStatus";
+import { GitHubLink } from "./GitHubLink";
 import { ByokSetup } from "@/components/byok/ByokSetup";
 
 const NAV = [
@@ -70,7 +71,8 @@ export function AppShell({
               );
             })}
           </nav>
-          <div className="ml-auto sm:ml-0">
+          <div className="ml-auto sm:ml-0 flex items-center gap-2">
+            <GitHubLink />
             <KeyStatus />
           </div>
         </div>

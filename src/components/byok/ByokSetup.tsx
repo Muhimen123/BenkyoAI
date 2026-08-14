@@ -174,7 +174,13 @@ export function ByokSetup({
             htmlFor="byok-key"
             hint={
               result && !result.valid ? undefined : (
-                <>Starts with <span className="font-mono">{info.keyPrefix}</span>. Checked as soon as you connect.</>
+                <>
+                  Starts with{" "}
+                  <span className="font-mono">
+                    {provider === "google" ? "AIza… or AQ…" : info.keyPrefix}
+                  </span>
+                  . Checked as soon as you connect.
+                </>
               )
             }
             error={result && !result.valid ? result.message : undefined}
@@ -186,7 +192,7 @@ export function ByokSetup({
                 value={key}
                 autoComplete="off"
                 spellCheck={false}
-                placeholder={`${info.keyPrefix}…`}
+                placeholder={provider === "google" ? "AIza… or AQ…" : `${info.keyPrefix}…`}
                 onChange={(e) => {
                   setKey(e.target.value);
                   setResult(null);

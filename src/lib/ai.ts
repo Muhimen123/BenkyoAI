@@ -19,7 +19,7 @@ export function getGeminiClient(apiKey?: string) {
 export async function generateGeminiResponse(
   prompt: string,
   apiKey?: string,
-  model: string = 'gemini-3.5-flash-lite'
+  model: string = 'gemini-2.5-flash'
 ): Promise<string> {
   const ai = getGeminiClient(apiKey);
   const response = await ai.models.generateContent({
@@ -39,10 +39,10 @@ export async function generateGeminiResponse(
  */
 export async function listGeminiModels(apiKey?: string): Promise<string[]> {
   const fallbackModels = [
-    'gemini-3.5-flash-lite',
-    'gemini-3.1-flash-lite',
-    'gemini-3.5-flash',
-    'gemini-3.6-flash',
+    'gemini-2.5-flash',
+    'gemini-2.5-flash-lite',
+    'gemini-2.0-flash',
+    'gemini-2.0-flash-lite',
   ];
 
   try {
@@ -53,8 +53,8 @@ export async function listGeminiModels(apiKey?: string): Promise<string[]> {
     for await (const m of pager) {
       if (m.name) {
         const cleanName = m.name.replace(/^models\//, '');
-        // Filter strictly for Gemini 3 family models
-        if (cleanName.includes('gemini-3')) {
+        // Filter for Gemini 2.x family models
+        if (cleanName.includes('gemini-2')) {
           models.push(cleanName);
         }
       }

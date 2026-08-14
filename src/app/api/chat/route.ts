@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     // We expect standard text output for chat.
     const combinedPrompt = `${CHAT_SYSTEM_PROMPT}\n\n${userPrompt}`;
 
-    const responseText = await generateGeminiResponse(combinedPrompt, apiKey, 'gemini-3.5-flash');
+    const responseText = await generateGeminiResponse(combinedPrompt, apiKey, 'gemini-2.5-flash');
     
     const chatMessage: ChatMessage = {
       id: uid("msg"),

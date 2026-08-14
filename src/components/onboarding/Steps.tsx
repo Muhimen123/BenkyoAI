@@ -23,10 +23,12 @@ export function TopicStep({
   topic,
   onTopicChange,
   onNext,
+  onBack,
 }: {
   topic: string;
   onTopicChange: (value: string) => void;
   onNext: () => void;
+  onBack?: () => void;
 }) {
   return (
     <div className="space-y-7">
@@ -67,9 +69,16 @@ export function TopicStep({
         <MaterialInput compact />
       </div>
 
-      <Button size="lg" onClick={onNext} disabled={topic.trim().length < 3} full>
-        Continue
-      </Button>
+      <div className="flex gap-2">
+        {onBack && (
+          <Button variant="ghost" onClick={onBack}>
+            Back
+          </Button>
+        )}
+        <Button size="lg" onClick={onNext} disabled={topic.trim().length < 3} className="flex-1">
+          Continue
+        </Button>
+      </div>
     </div>
   );
 }

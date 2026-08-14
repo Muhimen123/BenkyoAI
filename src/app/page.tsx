@@ -105,6 +105,7 @@ export default function OnboardingPage() {
           topic={draft.topic}
           onTopicChange={(topic) => setDraft({ topic })}
           onNext={() => setStep(2)}
+          onBack={() => setStep(0)}
         />
       );
     if (step === 2)
@@ -221,7 +222,7 @@ export default function OnboardingPage() {
           <div className="lg:pt-2">
             {canShow && (
               <RoadmapPreview
-                step={current}
+                step={0} // Always show logo card on all onboarding steps
                 topic={draft.topic}
                 level={level}
                 purpose={draft.purpose}

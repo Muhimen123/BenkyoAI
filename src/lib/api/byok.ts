@@ -29,11 +29,22 @@ export async function validateApiKey(
           message: "That key looks too short. Copy the whole key and paste it again.",
         };
       }
-      if (!key.startsWith(info.keyPrefix)) {
+
+      // Google keys start with AIza... or AQ...; other providers have a single fixed prefix.
+      const prefixOk =
+        provider === "google"
+          ? key.startsWith("AIza") || key.startsWith("AQ")
+          : key.startsWith(info.keyPrefix);
+
+      if (!prefixOk) {
+        const expectedDesc =
+          provider === "google"
+            ? "AIza… or AQ…"
+            : info.keyPrefix;
         return {
           valid: false,
           provider,
-          message: `${info.name} keys start with ${info.keyPrefix}. This one doesn't — check you copied from the right provider.`,
+          message: `${info.name} keys start with ${expectedDesc}. This one doesn't — check you copied from the right provider.`,
         };
       }
       if (key.toLowerCase().includes("test")) {

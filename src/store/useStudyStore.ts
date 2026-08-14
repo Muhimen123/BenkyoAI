@@ -327,13 +327,21 @@ export const useStudyStore = create<StudyState>()(
 
 // `hydrated` sits outside the persisted slice so the first client render can
 // tell "no roadmap yet" apart from "storage hasn't loaded yet".
-useStudyStore.persist.onFinishHydration(() => {
-  useStudyStore.setState({ hydrated: true });
-});
-if (useStudyStore.persist.hasHydrated()) {
-  useStudyStore.setState({ hydrated: true });
-}
+// useStudyStore.persist.onFinishHydration(() => {
+//   useStudyStore.setState({ hydrated: true });
+// });
+// if (useStudyStore.persist.hasHydrated()) {
+//   useStudyStore.setState({ hydrated: true });
+// }
 
+if (typeof window !== "undefined") {
+  useStudyStore.persist.onFinishHydration(() => {
+    useStudyStore.setState({ hydrated: true });
+  });
+  if (useStudyStore.persist.hasHydrated()) {
+    useStudyStore.setState({ hydrated: true });
+  }
+}
 /* --------------------------------------------------------------- selectors */
 
 export function findSubtopic(roadmap: Roadmap | null, subtopicId: string) {

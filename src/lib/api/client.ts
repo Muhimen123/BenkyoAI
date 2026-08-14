@@ -61,12 +61,26 @@ export async function request<TBody, TRes>(
 }
 
 async function deliver<TBody, TRes>(
-  _path: string,
+  path: string,
   body: TBody,
   credentials: StoredCredentials,
   resolve: Resolver<TBody, TRes>,
   latency: number,
 ): Promise<TRes> {
-  await sleep(latency);
-  return resolve(body, credentials);
+  const res = await fetch(path, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-provider": credentials.provider,
+      "x-provider-key": credentials.apiKey,
+    },
+    body: JSON.stringify(body),
+  });
+  
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.message || `API request failed: ${res.statusText}`);
+  }
+  
+  return res.json();
 }

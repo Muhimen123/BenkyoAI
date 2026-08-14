@@ -166,9 +166,9 @@ export async function generateGeminiResponse(
   try {
     return await attempt(firstModel);
   } catch (err: any) {
-    if (!isModelGone(err)) throw err;
-    // Model retired since we last resolved — bust cache and find a new one
-    console.warn(`[ai] Model ${firstModel} unavailable mid-session, re-resolving…`);
+    if (isAuthError(err)) throw err;
+    // Model failed or retired (e.g. 503 high demand, 429, or 404) — bust cache and resolve a new one
+    console.warn(`[ai] Model ${firstModel} failed (${err?.message?.slice(0, 80)}), re-resolving fallback…`);
     modelCache.delete(cacheKey);
     const fallback = await resolveWorkingModel(apiKey);
     return attempt(fallback);

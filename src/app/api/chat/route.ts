@@ -4,6 +4,10 @@ import { CHAT_SYSTEM_PROMPT } from '@/lib/prompts';
 import { uid } from '@/lib/utils';
 import type { ChatMessage } from '@/lib/types';
 
+function cleanMarkdown(text: string): string {
+  return text.replace(/\*\*/g, '').replace(/\*/g, '').trim();
+}
+
 export async function POST(request: NextRequest) {
   try {
     const apiKey = request.headers.get('x-provider-key');
@@ -28,7 +32,10 @@ Your output MUST be a JSON array of paragraphs (strings). Do NOT wrap the JSON i
       const responseText = await generateGeminiResponse(prompt, apiKey);
       const jsonString = responseText.replace(/```json\n?|```/g, '').trim();
       const parsed = JSON.parse(jsonString);
-      return NextResponse.json(parsed);
+      const cleaned = Array.isArray(parsed)
+        ? parsed.map((p: string) => cleanMarkdown(p))
+        : parsed;
+      return NextResponse.json(cleaned);
     }
 
     // 2. Check if it's reexplain (mode is present)
@@ -43,7 +50,7 @@ The explanation focus/style must be: "${mode}".
 Respond with a single string containing only the explanation paragraph.`;
 
       const responseText = await generateGeminiResponse(prompt, apiKey);
-      return NextResponse.json(responseText.trim());
+      return NextResponse.json(cleanMarkdown(responseText));
     }
 
     // 3. Regular chat message
@@ -71,7 +78,7 @@ Respond with a single string containing only the explanation paragraph.`;
     const chatMessage: ChatMessage = {
       id: uid("msg"),
       role: 'assistant',
-      content: responseText.trim(),
+      content: cleanMarkdown(responseText),
       createdAt: new Date().toISOString(),
     };
 

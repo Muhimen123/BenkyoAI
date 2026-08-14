@@ -265,8 +265,8 @@ export default function SubtopicPage() {
                         key={i}
                         className={
                           i === 0
-                            ? "text-[17px] leading-relaxed text-ink"
-                            : "animate-fade text-[15px] leading-relaxed text-ink-soft"
+                            ? "text-[16px] leading-relaxed text-ink-soft"
+                            : "animate-fade text-[16px] leading-relaxed text-ink-soft"
                         }
                       >
                         {paragraph}

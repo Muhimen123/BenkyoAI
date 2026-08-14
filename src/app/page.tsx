@@ -221,7 +221,7 @@ export default function OnboardingPage() {
           <div className="lg:pt-2">
             {canShow && (
               <RoadmapPreview
-                step={0} // Always show logo card on all onboarding steps
+                step={current}
                 topic={draft.topic}
                 level={level}
                 purpose={draft.purpose}

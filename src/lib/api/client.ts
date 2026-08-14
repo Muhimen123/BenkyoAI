@@ -78,6 +78,10 @@ async function deliver<TBody, TRes>(
   });
   
   if (!res.ok) {
+    if (res.status === 404) {
+      if (latency) await sleep(latency);
+      return resolve(body, credentials);
+    }
     const errorData = await res.json().catch(() => ({}));
     throw new Error(errorData.message || `API request failed: ${res.statusText}`);
   }

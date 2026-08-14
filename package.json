@@ -4,9 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint"
+  },
+  "browser": {
+    "canvas": false
   },
   "dependencies": {
     "@google/genai": "^2.17.0",

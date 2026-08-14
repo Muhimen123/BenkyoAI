@@ -1,0 +1,177 @@
+"use client";
+
+import { useRef, useState } from "react";
+import {
+  FileAudio,
+  FileText,
+  Image as ImageIcon,
+  Paperclip,
+  Presentation,
+  StickyNote,
+  Trash2,
+  Video,
+} from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { Textarea } from "@/components/ui/Field";
+import { useStudyStore } from "@/store/useStudyStore";
+import type { Material, MaterialKind } from "@/lib/types";
+import { cn, relativeTime } from "@/lib/utils";
+
+const ICONS: Record<MaterialKind, typeof FileText> = {
+  pdf: FileText,
+  slides: Presentation,
+  image: ImageIcon,
+  audio: FileAudio,
+  video: Video,
+  note: StickyNote,
+};
+
+function kindFor(name: string): MaterialKind {
+  const ext = name.split(".").pop()?.toLowerCase() ?? "";
+  if (["pdf"].includes(ext)) return "pdf";
+  if (["ppt", "pptx", "key"].includes(ext)) return "slides";
+  if (["png", "jpg", "jpeg", "heic", "webp"].includes(ext)) return "image";
+  if (["mp3", "m4a", "wav", "aac"].includes(ext)) return "audio";
+  if (["mp4", "mov", "webm"].includes(ext)) return "video";
+  return "note";
+}
+
+function sizeLabel(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+export function MaterialInput({
+  compact = false,
+  className,
+}: {
+  compact?: boolean;
+  className?: string;
+}) {
+  const materials = useStudyStore((s) => s.materials);
+  const addMaterial = useStudyStore((s) => s.addMaterial);
+  const removeMaterial = useStudyStore((s) => s.removeMaterial);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [dragging, setDragging] = useState(false);
+  const [notes, setNotes] = useState("");
+  const [showNotes, setShowNotes] = useState(false);
+
+  function addFiles(files: FileList | null) {
+    if (!files) return;
+    Array.from(files).forEach((file) =>
+      addMaterial({
+        name: file.name,
+        kind: kindFor(file.name),
+        sizeLabel: sizeLabel(file.size),
+        linkedTopicIds: [],
+      }),
+    );
+  }
+
+  function addNotes() {
+    const text = notes.trim();
+    if (!text) return;
+    addMaterial({
+      name: text.split("\n")[0].slice(0, 60) || "Pasted notes",
+      kind: "note",
+      sizeLabel: `${text.split(/\s+/).length} words`,
+      linkedTopicIds: [],
+    });
+    setNotes("");
+    setShowNotes(false);
+  }
+
+  return (
+    <div className={cn("space-y-3", className)}>
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          addFiles(e.dataTransfer.files);
+        }}
+        className={cn(
+          "rounded-xl border border-dashed px-4 py-5 transition-colors",
+          dragging ? "border-gold-500 bg-gold-50" : "border-line-strong bg-surface",
+          compact && "py-4",
+        )}
+      >
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <Paperclip className="size-4 text-gold-500" />
+          <p className="flex-1 text-sm text-ink-soft">
+            Slides, PDFs, photos of notes, lecture recordings — drop them here or
+            add them one at a time.
+          </p>
+          <div className="flex gap-2">
+            <Button size="sm" variant="secondary" onClick={() => fileRef.current?.click()}>
+              Add material
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setShowNotes((v) => !v)}>
+              Paste notes
+            </Button>
+          </div>
+        </div>
+        <input
+          ref={fileRef}
+          type="file"
+          multiple
+          hidden
+          onChange={(e) => {
+            addFiles(e.target.files);
+            e.target.value = "";
+          }}
+        />
+        {showNotes && (
+          <div className="animate-rise mt-3 space-y-2">
+            <Textarea
+              rows={4}
+              value={notes}
+              placeholder="Paste a syllabus, lecture notes, a problem set…"
+              onChange={(e) => setNotes(e.target.value)}
+            />
+            <div className="flex justify-end gap-2">
+              <Button size="sm" variant="ghost" onClick={() => setShowNotes(false)}>
+                Cancel
+              </Button>
+              <Button size="sm" onClick={addNotes} disabled={!notes.trim()}>
+                Add notes
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {materials.length > 0 && (
+        <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface">
+          {materials.map((material: Material) => {
+            const Icon = ICONS[material.kind];
+            return (
+              <li key={material.id} className="group flex items-center gap-3 px-4 py-3">
+                <Icon className="size-4 shrink-0 text-ink-faint" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm text-ink">{material.name}</p>
+                  <p className="label-data text-ink-faint">
+                    {material.kind} · {material.sizeLabel} · {relativeTime(material.addedAt)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeMaterial(material.id)}
+                  aria-label={`Remove ${material.name}`}
+                  className="rounded-md p-1.5 text-ink-faint opacity-0 transition-opacity group-hover:opacity-100 hover:bg-sunk hover:text-clay-700 focus-visible:opacity-100"
+                >
+                  <Trash2 className="size-4" />
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}

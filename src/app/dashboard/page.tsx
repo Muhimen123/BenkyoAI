@@ -1,0 +1,294 @@
+"use client";
+
+import Link from "next/link";
+import type { ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import {
+  ArrowRight,
+  Flag,
+  Moon,
+  PlayCircle,
+  Repeat2,
+  Sparkles,
+} from "lucide-react";
+import { AppShell, PageHead } from "@/components/shell/AppShell";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { Eyebrow, Skeleton } from "@/components/ui/Feedback";
+import { MasteryMeter } from "@/components/ui/MasteryMeter";
+import { RoadmapView } from "@/components/RoadmapView";
+import { LastTimeCallback } from "@/components/LastTimeCallback";
+import { GrowthCallout } from "@/components/GrowthCallout";
+import { PacingIndicator } from "@/components/PacingIndicator";
+import {
+  activeSession,
+  nextSubtopic,
+  roadmapProgress,
+  useStudyStore,
+  weakPoints,
+} from "@/store/useStudyStore";
+import type { Purpose } from "@/lib/types";
+
+const PURPOSE_LABEL: Record<Purpose, string> = {
+  exam: "Studying for an exam",
+  project: "Learning for a project",
+  job: "Learning for work",
+  curiosity: "Learning out of curiosity",
+};
+
+export default function DashboardPage() {
+  const router = useRouter();
+  const hydrated = useStudyStore((s) => s.hydrated);
+  const roadmap = useStudyStore((s) => s.roadmap);
+  const sessions = useStudyStore((s) => s.sessions);
+  const summaries = useStudyStore((s) => s.summaries);
+  const startSession = useStudyStore((s) => s.startSession);
+
+  const progress = roadmapProgress(roadmap);
+  const next = nextSubtopic(roadmap);
+  const resume = activeSession(sessions);
+  const weak = weakPoints(roadmap);
+  const lastSummary = summaries[0];
+  const growth = summaries.flatMap((s) => s.growth).slice(0, 3);
+  const lastMilestone =
+    roadmap?.topics.filter((t) => t.isMilestone && t.status !== "not-started").at(-1) ??
+    roadmap?.topics.find((t) => t.isMilestone);
+
+  function openNext() {
+    if (!next) return;
+    startSession({
+      subtopicId: next.subtopic.id,
+      subtopicTitle: next.subtopic.title,
+      topicTitle: next.topic.title,
+      mode: "lesson",
+    });
+    router.push(`/subtopic/${next.subtopic.id}`);
+  }
+
+  if (!hydrated || !roadmap) {
+    return (
+      <AppShell>
+        <div className="space-y-5">
+          <Skeleton className="h-9 w-2/3 max-w-sm" />
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-64 w-full" />
+        </div>
+      </AppShell>
+    );
+  }
+
+  return (
+    <AppShell>
+      <PageHead
+        eyebrow={PURPOSE_LABEL[roadmap.purpose]}
+        title={roadmap.title}
+        actions={
+          <Link href="/vault">
+            <Button variant="secondary" size="sm">
+              Open vault
+            </Button>
+          </Link>
+        }
+      />
+
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-10">
+        <div className="space-y-6">
+          {lastSummary?.carryOver && <LastTimeCallback summary={lastSummary} />}
+
+          {/* the one thing to do right now */}
+          <div className="book-card rounded-xl">
+            {/* book cover that flips open */}
+            <div className="book-cover flex flex-col justify-center items-center gap-1 rounded-xl p-6 bg-gradient-to-br from-gold-100 to-gold-50 border border-gold-200">
+              <Eyebrow className="text-gold-700">
+                {resume ? "Unfinished session" : "Next step"}
+              </Eyebrow>
+              <h3 className="text-center text-[17px] font-semibold text-ink tracking-tight mt-1 max-w-[85%] truncate">
+                {resume?.subtopicTitle ?? next?.subtopic.title ?? "Your next learning milestone"}
+              </h3>
+              <span className="label-data text-gold-500 mt-2">Hover to open book ✦</span>
+            </div>
+
+            <Card tone="accent" inset={false} className="space-y-4 pl-16 pr-5 py-5 sm:pl-24 sm:pr-6 sm:py-6">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <Eyebrow className="text-gold-700">
+                    {resume ? "Unfinished session" : "Next step"}
+                  </Eyebrow>
+                  <h2 className="mt-1.5 text-[19px] leading-snug font-semibold tracking-tight text-ink">
+                    {resume?.subtopicTitle ?? next?.subtopic.title ?? "Everything is mastered"}
+                  </h2>
+                  <p className="mt-1 text-[13px] text-ink-soft">
+                    {resume
+                      ? `${resume.topicTitle} · stopped at question ${resume.lastQuestionIndex + 1}`
+                      : next
+                        ? `${next.topic.title} · about ${next.subtopic.estimatedMin} min`
+                        : "Add a topic in the vault, or run an exam-night pass over everything."}
+                  </p>
+                </div>
+                {next && (
+                  <MasteryMeter
+                    value={resume ? resume.progress : next.subtopic.mastery}
+                    status={next.subtopic.status}
+                    className="hidden shrink-0 sm:inline-flex"
+                  />
+                )}
+              </div>
+
+              {(resume || next) && (
+                <div className="flex flex-wrap gap-2">
+                  {resume ? (
+                    <Link href={`/subtopic/${resume.subtopicId}`}>
+                      <Button icon={<PlayCircle className="size-4" />}>
+                        Resume session
+                      </Button>
+                    </Link>
+                  ) : (
+                    <Button onClick={openNext} icon={<PlayCircle className="size-4" />}>
+                      Start this step
+                    </Button>
+                  )}
+                  {weak.length > 0 && (
+                    <Badge tone="review" icon={<Sparkles className="size-2.5" />}>
+                      {weak.length} weak point{weak.length > 1 ? "s" : ""} blended in
+                    </Badge>
+                  )}
+                </div>
+              )}
+            </Card>
+          </div>
+
+          <section className="space-y-3">
+            <div className="flex items-baseline justify-between">
+              <h2 className="text-[15px] font-semibold text-ink">Your roadmap</h2>
+              <Link
+                href="/vault"
+                className="text-[13px] font-medium text-gold-700 underline decoration-gold-200 underline-offset-4 hover:decoration-gold-500"
+              >
+                See everything
+              </Link>
+            </div>
+            <RoadmapView roadmap={roadmap} />
+          </section>
+
+          {growth.length > 0 && (
+            <section className="space-y-3">
+              <h2 className="text-[15px] font-semibold text-ink">Since you started</h2>
+              <div className="space-y-2">
+                {growth.map((g) => (
+                  <GrowthCallout key={g.id} growth={g} />
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
+
+        <aside className="space-y-6">
+          <Card className="card-reveal space-y-4">
+            <div>
+              <Eyebrow>Progress</Eyebrow>
+              <p className="mt-1.5 flex items-baseline gap-2">
+                <span className="text-[30px] leading-none font-semibold tracking-tight text-ink tabular-nums">
+                  {progress.mastery}%
+                </span>
+                <span className="text-[13px] text-ink-soft">
+                  {progress.done} of {progress.total} steps mastered
+                </span>
+              </p>
+            </div>
+            <MasteryMeter value={progress.mastery} />
+            <div className="border-t border-line pt-4">
+              <PacingIndicator roadmap={roadmap} mastery={progress.mastery} />
+            </div>
+          </Card>
+
+          <section className="space-y-3">
+            <h2 className="text-[15px] font-semibold text-ink">Active recall</h2>
+            <div className="grid gap-3">
+              <Link
+                href="/recall/session-wise"
+                className="group flex items-start gap-3 rounded-xl border border-sage-100 bg-sage-50 p-4 transition-all hover:bg-sage-100 hover:translate-x-0.5"
+              >
+                <span className="mt-0.5 text-sage-600 transition-transform group-hover:scale-110">
+                  <Repeat2 className="size-4.5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold text-sage-900">From last session</span>
+                  <span className="mt-0.5 block text-[13px] leading-snug text-sage-700/80">
+                    What you covered, plus anything left unresolved.
+                  </span>
+                </span>
+                <ArrowRight className="mt-1 size-3.5 shrink-0 text-sage-400 transition-transform group-hover:translate-x-0.5" />
+              </Link>
+
+              <Link
+                href={`/recall/milestone-wise?scope=${lastMilestone?.id ?? "all"}`}
+                className="group flex items-start gap-3 rounded-xl border border-gold-200 bg-gold-50 p-4 transition-all hover:bg-gold-100 hover:translate-x-0.5"
+              >
+                <span className="mt-0.5 text-gold-600 transition-transform group-hover:scale-110">
+                  <Flag className="size-4.5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold text-gold-900">Up to a milestone</span>
+                  <span className="mt-0.5 block text-[13px] leading-snug text-gold-700/80">
+                    {lastMilestone
+                      ? `Everything through ${lastMilestone.title}.`
+                      : "Everything up to your first milestone."}
+                  </span>
+                </span>
+                <ArrowRight className="mt-1 size-3.5 shrink-0 text-gold-400 transition-transform group-hover:translate-x-0.5" />
+              </Link>
+            </div>
+
+            {/* Exam night gets its own entry point, and its own weight */}
+            <Link
+              href="/recall/exam-night"
+              className="btn-glow group block overflow-hidden rounded-xl p-5"
+            >
+              <span className="label-data flex items-center gap-1.5 text-[#c9d3ad]">
+                <Moon className="size-3" />
+                Exam night
+              </span>
+              <span className="mt-2 flex items-center justify-between gap-3">
+                <span className="text-[17px] font-semibold tracking-tight text-[#f3f1e6]">
+                  Revise the whole vault
+                </span>
+                <ArrowRight className="size-4 shrink-0 text-[#c9d3ad] transition-transform group-hover:translate-x-0.5" />
+              </span>
+              <span className="mt-1.5 block text-[13px] leading-snug text-[#a9b78a]">
+                One pass across everything you've studied, weakest first. Dimmed
+                interface, no explanations — recall only.
+              </span>
+            </Link>
+          </section>
+        </aside>
+      </div>
+    </AppShell>
+  );
+}
+
+function RecallLink({
+  href,
+  icon,
+  title,
+  body,
+}: {
+  href: string;
+  icon: ReactNode;
+  title: string;
+  body: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group flex items-start gap-3 border-b border-line px-4 py-3.5 transition-colors last:border-0 hover:bg-sunk"
+    >
+      <span className="mt-0.5 text-gold-500">{icon}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-medium text-ink">{title}</span>
+        <span className="mt-0.5 block text-[13px] leading-snug text-ink-soft">{body}</span>
+      </span>
+      <ArrowRight className="mt-1 size-3.5 shrink-0 text-ink-faint transition-transform group-hover:translate-x-0.5" />
+    </Link>
+  );
+}

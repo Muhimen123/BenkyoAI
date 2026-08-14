@@ -1,26 +1,1056 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ------------------------------------------------------------------
+   BenkyoAI design tokens
+   Base surfaces stay near-white; the palette lives in pastel tints,
+   hairlines, badges and active states — never as full-page fills.
+------------------------------------------------------------------ */
+@theme {
+  --font-sans: var(--font-ui), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-wordmark: var(--font-display), Georgia, "Times New Roman", serif;
+  --font-mono: var(--font-data), ui-monospace, "SFMono-Regular", monospace;
+
+  /* surfaces */
+  --color-paper: #fdfcfa;
+  --color-surface: #ffffff;
+  --color-sunk: #f7f4ee;
+
+  /* ink — pastel-to-deep derivatives of Café Noir #563D23 */
+  --color-ink: #2e2112;
+  --color-ink-soft: #6b5a46;
+  --color-ink-faint: #9c8e7c;
+
+  /* hairlines */
+  --color-line: #ece5da;
+  --color-line-strong: #dbd1c1;
+
+  /* accent — Harvest Gold #DD9C00 */
+  --color-gold-50: #fdf7e9;
+  --color-gold-100: #f8ead0;
+  --color-gold-200: #f0d69b;
+  --color-gold-300: #e8c268;
+  --color-gold-500: #dd9c00;
+  --color-gold-700: #8f6600;
+
+  /* highlight — Maize #FAE45E (review / blended-in weak points) */
+  --color-maize-50: #fefce9;
+  --color-maize-100: #fdf6c4;
+  --color-maize-300: #fae45e;
+  --color-maize-700: #8a7a0d;
+
+  /* success — Moss Green #A7A865 */
+  --color-sage-50: #f5f6ec;
+  --color-sage-100: #e7e9d0;
+  --color-sage-300: #c3c596;
+  --color-sage-500: #a7a865;
+  --color-sage-700: #5f6136;
+
+  /* deep accent — Dark Moss Green #283B0A */
+  --color-moss-800: #354b12;
+  --color-moss-900: #283b0a;
+  --color-moss-950: #1b2807;
+
+  /* attention — muted brick, used sparingly for careless/incorrect */
+  --color-clay-50: #fbefe9;
+  --color-clay-100: #f4ddd1;
+  --color-clay-500: #b4553a;
+  --color-clay-700: #843a24;
+
+  --radius-card: 0.75rem;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* ------------------------------------------------------------------
+   Exam Night Revision — same token names, darker values.
+   Any component built on bg-paper / text-ink flips automatically.
+------------------------------------------------------------------ */
+[data-mode="exam-night"] {
+  --color-paper: #12190a;
+  --color-surface: #1b2807;
+  --color-sunk: #223110;
+  --color-ink: #f3f1e6;
+  --color-ink-soft: #c2c4a4;
+  --color-ink-faint: #8a8f70;
+  --color-line: #33461a;
+  --color-line-strong: #48602a;
+  --color-gold-50: #2c2a10;
+  --color-gold-100: #3d3714;
+  --color-gold-200: #6b5a17;
+  --color-sage-50: #212f10;
+  --color-sage-100: #2f4118;
+  color-scheme: dark;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv05" 1, "ss01" 1;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background: var(--color-gold-100);
+    color: var(--color-ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-gold-500);
+    outline-offset: 2px;
+    border-radius: 3px;
+  }
+
+  input,
+  textarea {
+    background: transparent;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer utilities {
+
+  /* small caps data label — used for eyebrows, statuses, counters */
+  .label-data {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .wordmark {
+    font-family: var(--font-wordmark);
+    letter-spacing: -0.01em;
+  }
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .hide-scrollbar {
+    scrollbar-width: none;
+  }
+
+  .animate-rise {
+    animation: rise 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .animate-fade {
+    animation: fade 0.25s ease-out both;
+  }
+
+  .animate-pop {
+    animation: pop 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  /* ── Interactive card: stacked ghost layers that fan on hover ──
+     Inspired by Uiverse.io/gharsh11032000.
+     Usage: add class="card-lift" to any <Card> or container div.       */
+  .card-lift {
+    position: relative;
+    transition: transform 0.48s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  .card-lift::before,
+  .card-lift::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    border-radius: inherit;
+    transform-origin: bottom;
+    transition: all 0.48s cubic-bezier(0.23, 1, 0.32, 1);
+    z-index: -1;
+  }
+
+  /* first ghost layer — slightly wider, peeking above */
+  .card-lift::before {
+    top: -3%;
+    width: 92%;
+    height: 92%;
+    transform: translateX(-50%);
+    background: var(--color-gold-100);
+    opacity: 0.7;
+  }
+
+  /* second ghost layer — even wider, further back */
+  .card-lift::after {
+    top: -6%;
+    width: 82%;
+    height: 82%;
+    transform: translateX(-50%);
+    background: var(--color-gold-50);
+    opacity: 0.5;
+  }
+
+  .card-lift:hover {
+    transform: translateY(-14px);
+  }
+
+  .card-lift:hover::before {
+    rotate: -7deg;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0.85;
+  }
+
+  .card-lift:hover::after {
+    rotate: 7deg;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0.6;
+  }
+
+  /* ── Interactive card: inset gold border reveals + scale on hover ──
+     Inspired by Uiverse.io/Smit-Prajapati.
+     Usage: add class="card-reveal" to any card.                        */
+  .card-reveal {
+    position: relative;
+    transition: transform 0.5s ease-in-out, border-radius 0.5s ease-in-out;
+    overflow: hidden;
+  }
+
+  .card-reveal::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border: 2px solid var(--color-gold-300);
+    border-radius: inherit;
+    opacity: 0;
+    transform: rotate(8deg);
+    transition: all 0.5s ease-in-out;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .card-reveal:hover {
+    transform: scale(1.03);
+  }
+
+  .card-reveal:hover::before {
+    inset: 12px;
+    opacity: 1;
+    transform: rotate(0deg);
+    border-radius: 8px;
+  }
+
+  /* ── Book-flip card effect ──────────────────────────────────────────
+     Inspired by Uiverse.io/eslam-hany.
+     Wrap content in .book-card, put the "cover" layer in .book-cover.
+     On hover the cover flips open like a book page.
+     Usage:
+       <div class="book-card">
+         <div class="book-cover">…label…</div>
+         <div>…revealed content…</div>
+       </div>                                                           */
+  .book-card {
+    position: relative;
+    perspective: 1800px;
+    transform-style: preserve-3d;
+  }
+
+  .book-cover {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(135deg, var(--color-gold-100) 0%, var(--color-gold-50) 100%);
+    border: 1px solid var(--color-gold-200);
+    cursor: pointer;
+    transform-origin: left center;
+    transition: transform 0.52s cubic-bezier(0.23, 1, 0.32, 1),
+      box-shadow 0.52s cubic-bezier(0.23, 1, 0.32, 1);
+    box-shadow: 2px 2px 14px rgba(0, 0, 0, 0.10);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+  }
+
+  .book-card:hover .book-cover {
+    transform: rotateY(-78deg);
+    box-shadow: 8px 4px 24px rgba(0, 0, 0, 0.14);
+  }
+
+  /* ── Dark chat panel (Cobp style) ───────────────────────────────────
+     Apply .chat-dark to the ChatPanel wrapper section to enable this.  */
+  .chat-dark {
+    background: transparent !important;
+    border: none !important;
+  }
+
+  .chat-dark-shell {
+    position: relative;
+    background: linear-gradient(to bottom right, #7e7e7e, #363636, #363636, #363636);
+    border-radius: 16px;
+    padding: 1.5px;
+    overflow: hidden;
+  }
+
+  .chat-dark-shell::after {
+    position: absolute;
+    content: "";
+    top: -10px;
+    left: -10px;
+    background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.2), transparent, transparent);
+    width: 30px;
+    height: 30px;
+    filter: blur(1px);
+    pointer-events: none;
+  }
+
+  .chat-dark-inner {
+    display: flex;
+    flex-direction: column;
+    background-color: rgba(0, 0, 0, 0.62);
+    border-radius: 15px;
+    width: 100%;
+    overflow: hidden;
+    backdrop-filter: blur(8px);
+  }
+
+  .chat-dark-textarea {
+    background-color: transparent !important;
+    border: none !important;
+    color: #ffffff !important;
+    font-size: 13px !important;
+    padding: 12px 14px !important;
+    resize: none;
+    outline: none !important;
+  }
+
+  .chat-dark-textarea::placeholder {
+    color: rgba(243, 246, 253, 0.55) !important;
+    transition: color 0.3s ease;
+  }
+
+  .chat-dark-textarea:focus::placeholder {
+    color: rgba(243, 246, 253, 0.22) !important;
+  }
+
+  .chat-dark-send {
+    display: flex;
+    padding: 2px;
+    background-image: linear-gradient(to top, #292929, #555555, #292929);
+    border-radius: 10px;
+    box-shadow: inset 0 6px 2px -4px rgba(255, 255, 255, 0.4);
+    border: none;
+    outline: none;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+  }
+
+  .chat-dark-send:active {
+    transform: scale(0.92);
+  }
+
+  .chat-dark-send-inner {
+    width: 30px;
+    height: 30px;
+    padding: 6px;
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 10px;
+    backdrop-filter: blur(3px);
+    color: #8b8b8b;
+    display: grid;
+    place-items: center;
+    transition: color 0.3s ease, filter 0.3s ease;
+  }
+
+  .chat-dark-send:hover .chat-dark-send-inner,
+  .chat-dark-send:focus .chat-dark-send-inner {
+    color: #f3f6fd;
+    filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.6));
+  }
+
+  .chat-dark-tag {
+    padding: 4px 10px;
+    background-color: #1b1b1b;
+    border: 1.5px solid #363636;
+    border-radius: 10px;
+    cursor: pointer;
+    user-select: none;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 11px;
+    transition: border-color 0.2s ease, color 0.2s ease;
+  }
+
+  .chat-dark-tag:hover {
+    border-color: var(--color-gold-300);
+    color: #ffffff;
+  }
+
+  /* ── shah1345 premium slide transition button (adapted to moss green) ── */
+  .btn-premium {
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+    transition: all 0.2s ease-in;
+    cursor: pointer;
+  }
+
+  .btn-premium::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%) scaleY(1) scaleX(1.25);
+    top: 100%;
+    width: 140%;
+    height: 180%;
+    background-color: rgba(255, 255, 255, 0.15);
+    border-radius: 50%;
+    display: block;
+    transition: all 0.5s 0.1s cubic-bezier(0.55, 0, 0.1, 1);
+    z-index: -1;
+  }
+
+  .btn-premium::after {
+    content: "";
+    position: absolute;
+    left: 55%;
+    transform: translateX(-50%) scaleY(1) scaleX(1.45);
+    top: 180%;
+    width: 160%;
+    height: 190%;
+    background-color: var(--color-moss-800);
+    border-radius: 50%;
+    display: block;
+    transition: all 0.5s 0.1s cubic-bezier(0.55, 0, 0.1, 1);
+    z-index: -1;
+  }
+
+  .btn-premium:hover {
+    color: #ffffff !important;
+    border-color: var(--color-moss-800) !important;
+  }
+
+  .btn-premium:hover::before {
+    top: -35%;
+    background-color: var(--color-moss-800);
+    transform: translateX(-50%) scaleY(1.3) scaleX(0.8);
+  }
+
+  .btn-premium:hover::after {
+    top: -45%;
+    background-color: var(--color-moss-800);
+    transform: translateX(-50%) scaleY(1.3) scaleX(0.8);
+  }
+
+  /* ── shah1345 premium slide transition button (adapted to gold) ── */
+  .btn-premium-gold {
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+    transition: all 0.2s ease-in;
+    cursor: pointer;
+  }
+
+  .btn-premium-gold::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%) scaleY(1) scaleX(1.25);
+    top: 100%;
+    width: 140%;
+    height: 180%;
+    background-color: rgba(255, 255, 255, 0.25);
+    border-radius: 50%;
+    display: block;
+    transition: all 0.5s 0.1s cubic-bezier(0.55, 0, 0.1, 1);
+    z-index: -1;
+  }
+
+  .btn-premium-gold::after {
+    content: "";
+    position: absolute;
+    left: 55%;
+    transform: translateX(-50%) scaleY(1) scaleX(1.45);
+    top: 180%;
+    width: 160%;
+    height: 190%;
+    background-color: var(--color-gold-500);
+    border-radius: 50%;
+    display: block;
+    transition: all 0.5s 0.1s cubic-bezier(0.55, 0, 0.1, 1);
+    z-index: -1;
+  }
+
+  .btn-premium-gold:hover {
+    color: var(--color-ink) !important;
+    border-color: var(--color-gold-500) !important;
+  }
+
+  .btn-premium-gold:hover::before {
+    top: -35%;
+    background-color: var(--color-gold-500);
+    transform: translateX(-50%) scaleY(1.3) scaleX(0.8);
+  }
+
+  .btn-premium-gold:hover::after {
+    top: -45%;
+    background-color: var(--color-gold-500);
+    transform: translateX(-50%) scaleY(1.3) scaleX(0.8);
+  }
+
+  /* ── Javierrocadev glowing blur-sphere transition button (adapted to gold/sage) ── */
+  .btn-glow {
+    position: relative;
+    overflow: hidden;
+    transition: all 0.5s ease-in-out;
+    background-color: var(--color-moss-900);
+    border: 1px solid var(--color-moss-950);
+  }
+
+  .btn-glow::before,
+  .btn-glow::after {
+    content: "";
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(12px);
+    transition: all 0.5s ease-in-out;
+    opacity: 0.35;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* gold bubble */
+  .btn-glow::before {
+    width: 50px;
+    height: 50px;
+    background-color: var(--color-gold-300);
+    right: -10px;
+    top: -10px;
+  }
+
+  /* sage bubble */
+  .btn-glow::after {
+    width: 70px;
+    height: 70px;
+    background-color: var(--color-sage-300);
+    right: 20px;
+    top: 10px;
+  }
+
+  .btn-glow:hover {
+    border-color: var(--color-gold-300) !important;
+    box-shadow: 0 0 15px rgba(221, 156, 0, 0.25);
+  }
+
+  .btn-glow:hover::before {
+    right: 40px;
+    bottom: -15px;
+    box-shadow: 15px 15px 20px 25px var(--color-gold-300);
+    opacity: 0.6;
+  }
+
+  .btn-glow:hover::after {
+    right: -25px;
+    opacity: 0.6;
+  }
+
+  /* ── Subtle geometric background pattern (inspired by csemszepp) ── */
+  .pattern-steps-bg {
+    --s: 120px;
+    --c1: rgba(221, 156, 0, 0.08);
+    /* gold tint */
+    --c2: rgba(167, 168, 101, 0.08);
+    /* sage-green tint */
+    --c3: var(--color-sunk);
+    /* warm sunk background */
+
+    --_l: transparent calc(25% / 3), var(--c1) 0 25%, transparent 0;
+    --_g: conic-gradient(from 120deg at 50% 87.5%, var(--c1) 120deg, transparent 0);
+
+    background: var(--_g), var(--_g) 0 calc(var(--s) / 2),
+      conic-gradient(from 180deg at 75%, var(--c2) 60deg, transparent 0),
+      conic-gradient(from 60deg at 75% 75%, var(--c1) 0 60deg, transparent 0),
+      linear-gradient(150deg, var(--_l)) 0 calc(var(--s) / 2),
+      conic-gradient(at 25% 25%,
+        transparent 50%,
+        var(--c2) 0 240deg,
+        var(--c1) 0 300deg,
+        var(--c2) 0),
+      linear-gradient(-150deg, var(--_l)) var(--c3);
+    background-size: calc(0.866 * var(--s)) var(--s);
+  }
+
+  /* ── Loader 1: Flower animations ── */
+  /* The step card wrapping "STEP 01 OF 04" + the big number */
+  .loader-flower {
+    --fill-color: var(--color-gold-500);
+    --shine-color: rgba(221, 156, 0, 0.2);
+    width: 100px;
+    height: auto;
+    transform: scale(0.35) translateY(20px);
+    /* controls the visible size */
+    position: relative;
+    filter: drop-shadow(0 0 10px var(--shine-color));
+  }
+
+  .loader-flower #pegtopone {
+    position: absolute;
+    animation: flowe-one 1s linear infinite;
+  }
+
+  .loader-flower #pegtoptwo {
+    position: absolute;
+    opacity: 0;
+    transform: scale(0) translateY(-200px) translateX(-100px);
+    animation: flowe-two 1s linear infinite;
+    animation-delay: 0.3s;
+  }
+
+  .loader-flower #pegtopthree {
+    position: absolute;
+    opacity: 0;
+    transform: scale(0) translateY(-200px) translateX(100px);
+    animation: flowe-three 1s linear infinite;
+    animation-delay: 0.6s;
+  }
+
+  .loader-flower svg g path:first-child {
+    fill: var(--fill-color);
+  }
+
+  @keyframes flowe-one {
+    0% {
+      transform: scale(0.5) translateY(-200px);
+      opacity: 0;
+    }
+
+    25% {
+      transform: scale(0.75) translateY(-100px);
+      opacity: 1;
+    }
+
+    50% {
+      transform: scale(1) translateY(0px);
+      opacity: 1;
+    }
+
+    75% {
+      transform: scale(0.5) translateY(50px);
+      opacity: 1;
+    }
+
+    100% {
+      transform: scale(0) translateY(100px);
+      opacity: 0;
+    }
+  }
+
+  @keyframes flowe-two {
+    0% {
+      transform: scale(0.5) rotateZ(-10deg) translateY(-200px) translateX(-100px);
+      opacity: 0;
+    }
+
+    25% {
+      transform: scale(1) rotateZ(-5deg) translateY(-100px) translateX(-50px);
+      opacity: 1;
+    }
+
+    50% {
+      transform: scale(1) rotateZ(0deg) translateY(0px) translateX(-25px);
+      opacity: 1;
+    }
+
+    75% {
+      transform: scale(0.5) rotateZ(5deg) translateY(50px) translateX(0px);
+      opacity: 1;
+    }
+
+    100% {
+      transform: scale(0) rotateZ(10deg) translateY(100px) translateX(25px);
+      opacity: 0;
+    }
+  }
+
+  @keyframes flowe-three {
+    0% {
+      transform: scale(0.5) rotateZ(10deg) translateY(-200px) translateX(100px);
+      opacity: 0;
+    }
+
+    25% {
+      transform: scale(1) rotateZ(5deg) translateY(-100px) translateX(50px);
+      opacity: 1;
+    }
+
+    50% {
+      transform: scale(1) rotateZ(0deg) translateY(0px) translateX(25px);
+      opacity: 1;
+    }
+
+    75% {
+      transform: scale(0.5) rotateZ(-5deg) translateY(50px) translateX(0px);
+      opacity: 1;
+    }
+
+    100% {
+      transform: scale(0) rotateZ(-10deg) translateY(100px) translateX(-25px);
+      opacity: 0;
+    }
+  }
+
+  /* ── Loader 2: 3D Tower ── */
+  .loader-tower {
+    scale: 2.5;
+    height: 50px;
+    width: 40px;
+    position: relative;
+  }
+
+  .loader-tower .box {
+    position: absolute;
+    opacity: 0;
+    left: 5px;
+  }
+
+  .loader-tower .side-left {
+    position: absolute;
+    background-color: var(--color-moss-800);
+    width: 19px;
+    height: 5px;
+    transform: skew(0deg, -25deg);
+    top: 14px;
+    left: 10px;
+  }
+
+  .loader-tower .side-right {
+    position: absolute;
+    background-color: var(--color-moss-700);
+    width: 19px;
+    height: 5px;
+    transform: skew(0deg, 25deg);
+    top: 14px;
+    left: -9px;
+  }
+
+  .loader-tower .side-top {
+    position: absolute;
+    background-color: var(--color-gold-300);
+    width: 20px;
+    height: 20px;
+    transform: rotate(45deg) skew(-20deg, -20deg);
+  }
+
+  .loader-tower .box-1 {
+    animation: from-left 4s infinite;
+  }
+
+  .loader-tower .box-2 {
+    animation: from-right 4s infinite;
+    animation-delay: 1s;
+  }
+
+  .loader-tower .box-3 {
+    animation: from-left 4s infinite;
+    animation-delay: 2s;
+  }
+
+  .loader-tower .box-4 {
+    animation: from-right 4s infinite;
+    animation-delay: 3s;
+  }
+
+  @keyframes from-left {
+    0% {
+      z-index: 20;
+      opacity: 0;
+      translate: -20px -6px;
+    }
+
+    20% {
+      z-index: 10;
+      opacity: 1;
+      translate: 0px 0px;
+    }
+
+    40% {
+      z-index: 9;
+      translate: 0px 4px;
+    }
+
+    60% {
+      z-index: 8;
+      translate: 0px 8px;
+    }
+
+    80% {
+      z-index: 7;
+      opacity: 1;
+      translate: 0px 12px;
+    }
+
+    100% {
+      z-index: 5;
+      translate: 0px 30px;
+      opacity: 0;
+    }
+  }
+
+  @keyframes from-right {
+    0% {
+      z-index: 20;
+      opacity: 0;
+      translate: 20px -6px;
+    }
+
+    20% {
+      z-index: 10;
+      opacity: 1;
+      translate: 0px 0px;
+    }
+
+    40% {
+      z-index: 9;
+      translate: 0px 4px;
+    }
+
+    60% {
+      z-index: 8;
+      translate: 0px 8px;
+    }
+
+    80% {
+      z-index: 7;
+      opacity: 1;
+      translate: 0px 12px;
+    }
+
+    100% {
+      z-index: 5;
+      translate: 0px 30px;
+      opacity: 0;
+    }
+  }
+
+  /* ── Loader 3: 3D rotating cube ── */
+  .cube-loader {
+    position: relative;
+    width: 60px;
+    height: 60px;
+    transform-style: preserve-3d;
+    transform: rotateX(-30deg);
+    animation: animate-cube 4s linear infinite;
+    scale: 1.25;
+  }
+
+  @keyframes animate-cube {
+    0% {
+      transform: rotateX(-30deg) rotateY(0);
+    }
+
+    100% {
+      transform: rotateX(-30deg) rotateY(360deg);
+    }
+  }
+
+  .cube-loader .cube-wrapper {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+  }
+
+  .cube-loader .cube-wrapper .cube-span {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    transform: rotateY(calc(90deg * var(--i))) translateZ(30px);
+    background: linear-gradient(to bottom, var(--color-gold-500) 0%, var(--color-moss-800) 100%);
+  }
+
+  .cube-top {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    background: var(--color-gold-300);
+    transform: rotateX(90deg) translateZ(30px);
+    transform-style: preserve-3d;
+  }
+
+  .cube-top::before {
+    content: '';
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    background: var(--color-gold-400);
+    transform: translateZ(-70px);
+    filter: blur(10px);
+    box-shadow: 0 0 10px #222, 0 0 20px var(--color-gold-500), 0 0 30px #222, 0 0 40px var(--color-gold-300);
+  }
+
+  /* ── Loader 4: Server node animations ── */
+  #svg-global {
+    overflow: visible;
+  }
+
+  @keyframes fade-particles {
+
+    0%,
+    100% {
+      opacity: 1;
+    }
+
+    50% {
+      opacity: 0.5;
+    }
+  }
+
+  @keyframes floatUp {
+    0% {
+      transform: translateY(0);
+      opacity: 0;
+    }
+
+    10% {
+      opacity: 1;
+    }
+
+    100% {
+      transform: translateY(-40px);
+      opacity: 0;
+    }
+  }
+
+  #particles {
+    animation: fade-particles 5s infinite alternate;
+  }
+
+  .particle {
+    animation: floatUp linear infinite;
+  }
+
+  .p1 {
+    animation-duration: 2.2s;
+    animation-delay: 0s;
+  }
+
+  .p2 {
+    animation-duration: 2.5s;
+    animation-delay: 0.3s;
+  }
+
+  .p3 {
+    animation-duration: 2s;
+    animation-delay: 0.6s;
+  }
+
+  .p4 {
+    animation-duration: 2.8s;
+    animation-delay: 0.2s;
+  }
+
+  .p5 {
+    animation-duration: 2.3s;
+    animation-delay: 0.4s;
+  }
+
+  .p6 {
+    animation-duration: 3s;
+    animation-delay: 0.1s;
+  }
+
+  .p7 {
+    animation-duration: 2.1s;
+    animation-delay: 0.5s;
+  }
+
+  .p8 {
+    animation-duration: 2.6s;
+    animation-delay: 0.2s;
+  }
+
+  .p9 {
+    animation-duration: 2.4s;
+    animation-delay: 0.3s;
+  }
+
+  @keyframes bounce-lines {
+
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+
+    50% {
+      transform: translateY(-3px);
+    }
+  }
+
+  #line-v1,
+  #line-v2,
+  #node-server,
+  #panel-rigth,
+  #reflectores,
+  #particles {
+    animation: bounce-lines 3s ease-in-out infinite alternate;
+  }
+
+  #line-v2 {
+    animation-delay: 0.2s;
+  }
+
+  #node-server,
+  #panel-rigth,
+  #reflectores,
+  #particles {
+    animation-delay: 0.4s;
+  }
+}
+
+
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+
+  60% {
+    transform: scale(1.01);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

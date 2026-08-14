@@ -40,51 +40,70 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
 
       // Probe the real API with a tiny generateContent call.
-      // Only reject the key on a definitive auth failure (HTTP 400 with API key
-      // error, 401, or 403). Any other failure (rate limit, network, 5xx) means
-      // we can't be sure, so we let the key through and surface errors on the
-      // first real study call instead of blocking the user.
-      try {
-        const ai = new GoogleGenAI({ apiKey: key });
-        await ai.models.generateContent({
-          model: "gemini-2.0-flash-lite",
-          contents: "hi",
-        });
-      } catch (err: any) {
-        // The SDK surfaces HTTP status in different shapes across versions
-        const status: number =
-          err?.status ??
-          err?.statusCode ??
-          err?.response?.status ??
-          err?.httpStatus ??
-          0;
+      // Try candidate models in priority order — a 404 on any individual model
+      // just means that model is retired, not that the key is wrong.
+      // Only a 401/403 (auth error) or an explicit API_KEY_INVALID definitively
+      // means the key is bad.
+      const PROBE_CANDIDATES = [
+        'gemini-2.5-flash',
+        'gemini-2.5-flash-lite',
+        'gemini-2.0-flash',
+        'gemini-1.5-flash',
+      ];
 
-        const msg: string = (err?.message ?? "").toLowerCase();
-        const isAuthError =
-          status === 401 ||
-          status === 403 ||
-          // Some SDK versions throw a 400 with an "API_KEY_INVALID" error code
-          (status === 400 && msg.includes("api_key_invalid")) ||
-          (status === 400 && msg.includes("api key not valid"));
+      let probeAuthError: KeyValidationResult | null = null;
+      let probeSucceeded = false;
 
-        if (isAuthError) {
-          return NextResponse.json<KeyValidationResult>({
-            valid: false,
-            provider: "google",
-            message:
-              "Google rejected this key. Make sure you copied the full key from AI Studio and that the Gemini API is enabled.",
+      for (const probeModel of PROBE_CANDIDATES) {
+        try {
+          const ai = new GoogleGenAI({ apiKey: key });
+          await ai.models.generateContent({
+            model: probeModel,
+            contents: 'hi',
           });
+          probeSucceeded = true;
+          break;
+        } catch (err: any) {
+          const status: number =
+            err?.status ??
+            err?.statusCode ??
+            err?.response?.status ??
+            err?.httpStatus ??
+            0;
+          const msg: string = (err?.message ?? '').toLowerCase();
+
+          const isAuthError =
+            status === 401 ||
+            status === 403 ||
+            (status === 400 && msg.includes('api_key_invalid')) ||
+            (status === 400 && msg.includes('api key not valid'));
+
+          if (isAuthError) {
+            probeAuthError = {
+              valid: false,
+              provider: 'google',
+              message:
+                'Google rejected this key. Make sure you copied the full key from AI Studio and that the Gemini API is enabled.',
+            };
+            break; // Auth errors apply to all models — no point continuing
+          }
+          // 404 = model retired, try next candidate; other errors = keep trying
         }
-        // Any other failure — network issue, quota, 429, 5xx — treat as
-        // "couldn't verify" and let the key through.
-        console.warn("Key probe failed with non-auth error, treating key as valid:", err?.message);
+      }
+
+      if (probeAuthError) {
+        return NextResponse.json<KeyValidationResult>(probeAuthError);
+      }
+      // If probeSucceeded or all models 404'd, the key itself is fine
+      if (!probeSucceeded) {
+        console.warn('All probe models 404d — treating key as valid, model resolution will happen at runtime.');
       }
 
       return NextResponse.json<KeyValidationResult>({
         valid: true,
         provider: "google",
         message: "Connected to Google AI Studio. Your key stays on this device.",
-        modelHint: "gemini-2.0-flash",
+        modelHint: probeSucceeded ? PROBE_CANDIDATES.find(Boolean) : "gemini-2.5-flash",
       });
     }
 

@@ -25,6 +25,7 @@ export default function SettingsPage() {
 
   const [replacing, setReplacing] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [confirmRemoveKey, setConfirmRemoveKey] = useState(false);
 
   if (!hydrated) {
     return (
@@ -80,7 +81,7 @@ export default function SettingsPage() {
               {connection ? "Replace key or provider" : "Connect a key"}
             </Button>
             {connection && (
-              <Button variant="danger" size="sm" onClick={disconnectKey}>
+              <Button variant="danger" size="sm" onClick={() => setConfirmRemoveKey(true)}>
                 Remove key
               </Button>
             )}
@@ -151,11 +152,48 @@ export default function SettingsPage() {
         description="Pick any supported provider. The old key is replaced the moment the new one checks out."
         width="lg"
       >
+        <p className="mb-5 flex items-start gap-2 rounded-lg border border-line bg-sunk px-3.5 py-2.5 text-[13px] leading-snug text-ink-soft">
+          <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-sage-700" />
+          Your roadmap, materials, sessions and progress all stay exactly as
+          they are — swapping the key or provider only changes what the app
+          talks to, not what it remembers.
+        </p>
         <ByokSetup
           showExplainer={false}
           submitLabel="Save this key"
           onConnected={() => setReplacing(false)}
         />
+      </Modal>
+
+      <Modal
+        open={confirmRemoveKey}
+        onClose={() => setConfirmRemoveKey(false)}
+        title="Remove your key?"
+        description="The app won't be able to make AI requests until you connect a key again."
+        footer={
+          <>
+            <Button variant="ghost" size="sm" onClick={() => setConfirmRemoveKey(false)}>
+              Keep it
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={() => {
+                disconnectKey();
+                setConfirmRemoveKey(false);
+              }}
+            >
+              Remove key
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm leading-relaxed text-ink-soft">
+          Your roadmap, materials, sessions and progress are <strong>not</strong>{" "}
+          affected and stay saved in this browser. You'll be sent back to the
+          key step, where you can reconnect the same key or a different one at
+          any time — this doesn't touch your data.
+        </p>
       </Modal>
 
       <Modal
@@ -182,8 +220,10 @@ export default function SettingsPage() {
         }
       >
         <p className="text-sm leading-relaxed text-ink-soft">
-          You'll start again from the topic step. Nothing is recoverable
-          afterwards.
+          Every roadmap, material, session and summary is deleted from this
+          browser — there's no backup to restore from. Your connected key is{" "}
+          <strong>not</strong> affected; you'll start again from the topic
+          step still signed in. Nothing here is recoverable afterwards.
         </p>
       </Modal>
     </AppShell>

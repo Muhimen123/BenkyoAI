@@ -7,6 +7,8 @@ import { AppShell, PageHead } from "@/components/shell/AppShell";
 import { Segmented } from "@/components/ui/Segmented";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
 import { EmptyState, Eyebrow, Skeleton } from "@/components/ui/Feedback";
 import { RoadmapView } from "@/components/RoadmapView";
 import { RoadmapControls } from "@/components/RoadmapControls";
@@ -34,6 +36,7 @@ export default function VaultPage() {
   const allSummaries = useStudyStore((s) => s.summaries);
   const summary = useStudyStore((s) => s.summary);
   const [tab, setTab] = useState<Tab>("roadmap");
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
 
   // Scoped to the roadmap in view — the store keeps one flat list for all of them.
   const sessions = sessionsFor(allSessions, roadmap);
@@ -112,14 +115,7 @@ export default function VaultPage() {
                       <button
                         type="button"
                         aria-label={`Delete ${r.title}`}
-                        onClick={() => {
-                          if (
-                            window.confirm(
-                              `Delete "${r.title}"? Its sessions and history go with it. This can't be undone.`,
-                            )
-                          )
-                            deleteRoadmap(r.id);
-                        }}
+                        onClick={() => setDeleteTarget({ id: r.id, title: r.title })}
                         className="shrink-0 rounded-lg p-2 text-ink-faint transition-colors hover:bg-clay-50 hover:text-clay-700"
                       >
                         <Trash2 className="size-4" />
@@ -159,6 +155,35 @@ export default function VaultPage() {
       {tab === "sessions" && (
         <SessionHistory sessions={sessions} summarised={summaries.map((s) => s.sessionId)} />
       )}
+
+      <Modal
+        open={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        title={`Delete "${deleteTarget?.title ?? ""}"?`}
+        description="Its sessions and history go with it. This can't be undone."
+        footer={
+          <>
+            <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(null)}>
+              Keep it
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={() => {
+                if (deleteTarget) deleteRoadmap(deleteTarget.id);
+                setDeleteTarget(null);
+              }}
+            >
+              Delete roadmap
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm leading-relaxed text-ink-soft">
+          The roadmap, its materials, sessions and progress will be removed
+          from this browser. Your other roadmaps and your key stay untouched.
+        </p>
+      </Modal>
     </AppShell>
   );
 }

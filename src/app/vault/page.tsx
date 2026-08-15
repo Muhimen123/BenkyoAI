@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { FolderOpen, Layers, NotebookPen } from "lucide-react";
+import { Check, FolderOpen, Layers, NotebookPen, Plus, Trash2 } from "lucide-react";
 import { AppShell, PageHead } from "@/components/shell/AppShell";
 import { Segmented } from "@/components/ui/Segmented";
 import { Card } from "@/components/ui/Card";
@@ -12,7 +12,12 @@ import { RoadmapView } from "@/components/RoadmapView";
 import { RoadmapControls } from "@/components/RoadmapControls";
 import { MaterialInput } from "@/components/MaterialInput";
 import { SummaryCard } from "@/components/SummaryCard";
-import { useStudyStore, roadmapProgress } from "@/store/useStudyStore";
+import {
+  useStudyStore,
+  roadmapProgress,
+  sessionsFor,
+  summariesFor,
+} from "@/store/useStudyStore";
 import { formatDate, relativeTime } from "@/lib/utils";
 import type { Session } from "@/lib/types";
 
@@ -21,11 +26,18 @@ type Tab = "roadmap" | "materials" | "sessions";
 export default function VaultPage() {
   const hydrated = useStudyStore((s) => s.hydrated);
   const roadmap = useStudyStore((s) => s.roadmap);
+  const roadmaps = useStudyStore((s) => s.roadmaps);
+  const switchRoadmap = useStudyStore((s) => s.switchRoadmap);
+  const deleteRoadmap = useStudyStore((s) => s.deleteRoadmap);
   const materials = useStudyStore((s) => s.materials);
-  const sessions = useStudyStore((s) => s.sessions);
-  const summaries = useStudyStore((s) => s.summaries);
+  const allSessions = useStudyStore((s) => s.sessions);
+  const allSummaries = useStudyStore((s) => s.summaries);
   const summary = useStudyStore((s) => s.summary);
   const [tab, setTab] = useState<Tab>("roadmap");
+
+  // Scoped to the roadmap in view — the store keeps one flat list for all of them.
+  const sessions = sessionsFor(allSessions, roadmap);
+  const summaries = summariesFor(allSummaries, roadmap);
 
   const progress = roadmapProgress(roadmap);
 
@@ -59,7 +71,66 @@ export default function VaultPage() {
       />
 
       {tab === "roadmap" && (
-        <div className="animate-fade space-y-4">
+        <div className="animate-fade space-y-6">
+          <section className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-[15px] font-semibold text-ink">
+                Your roadmaps ({roadmaps.length})
+              </h2>
+              <Link
+                href="/?new=1"
+                className="inline-flex items-center gap-1.5 text-[13px] font-medium text-gold-700 underline decoration-gold-200 underline-offset-4 hover:decoration-gold-500"
+              >
+                <Plus className="size-3.5" />
+                New roadmap
+              </Link>
+            </div>
+            <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line">
+              {roadmaps.map((r) => {
+                const active = r.id === roadmap.id;
+                const rProgress = roadmapProgress(r);
+                return (
+                  <li key={r.id} className="flex items-center gap-3 bg-surface p-3 sm:p-4">
+                    <button
+                      type="button"
+                      onClick={() => switchRoadmap(r.id)}
+                      className="min-w-0 flex-1 text-left"
+                    >
+                      <span className="flex items-center gap-2">
+                        {active && <Check className="size-3.5 shrink-0 text-gold-600" />}
+                        <span className="truncate text-sm font-medium text-ink">
+                          {r.title}
+                        </span>
+                      </span>
+                      <span className="mt-0.5 block text-[12px] text-ink-soft">
+                        {rProgress.done} of {rProgress.total} steps mastered ·{" "}
+                        {rProgress.mastery}%
+                        {active ? " · in view" : ""}
+                      </span>
+                    </button>
+                    {roadmaps.length > 1 && (
+                      <button
+                        type="button"
+                        aria-label={`Delete ${r.title}`}
+                        onClick={() => {
+                          if (
+                            window.confirm(
+                              `Delete "${r.title}"? Its sessions and history go with it. This can't be undone.`,
+                            )
+                          )
+                            deleteRoadmap(r.id);
+                        }}
+                        className="shrink-0 rounded-lg p-2 text-ink-faint transition-colors hover:bg-clay-50 hover:text-clay-700"
+                      >
+                        <Trash2 className="size-4" />
+                      </button>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-[13px] text-ink-soft">
               Tap a topic to open its steps. Each step keeps its own practice and

@@ -7,6 +7,8 @@ import {
   ArrowRight,
   Flag,
   Moon,
+  PartyPopper,
+  Plus,
   PlayCircle,
   Repeat2,
   Sparkles,
@@ -25,6 +27,8 @@ import {
   activeSession,
   nextSubtopic,
   roadmapProgress,
+  sessionsFor,
+  summariesFor,
   useStudyStore,
   weakPoints,
 } from "@/store/useStudyStore";
@@ -41,9 +45,15 @@ export default function DashboardPage() {
   const router = useRouter();
   const hydrated = useStudyStore((s) => s.hydrated);
   const roadmap = useStudyStore((s) => s.roadmap);
-  const sessions = useStudyStore((s) => s.sessions);
-  const summaries = useStudyStore((s) => s.summaries);
+  const roadmaps = useStudyStore((s) => s.roadmaps);
+  const switchRoadmap = useStudyStore((s) => s.switchRoadmap);
+  const allSessions = useStudyStore((s) => s.sessions);
+  const allSummaries = useStudyStore((s) => s.summaries);
   const startSession = useStudyStore((s) => s.startSession);
+
+  // Scoped to the roadmap in view — the store keeps one flat list for all of them.
+  const sessions = sessionsFor(allSessions, roadmap);
+  const summaries = summariesFor(allSummaries, roadmap);
 
   const progress = roadmapProgress(roadmap);
   const next = nextSubtopic(roadmap);
@@ -84,16 +94,64 @@ export default function DashboardPage() {
         eyebrow={PURPOSE_LABEL[roadmap.purpose]}
         title={roadmap.title}
         actions={
-          <Link href="/vault">
-            <Button variant="secondary" size="sm">
-              Open vault
-            </Button>
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            {roadmaps.length > 1 && (
+              <select
+                value={roadmap.id}
+                onChange={(e) => switchRoadmap(e.target.value)}
+                aria-label="Switch roadmap"
+                className="h-9 max-w-[45vw] rounded-lg border border-line bg-surface px-2.5 text-[13px] text-ink sm:max-w-none"
+              >
+                {roadmaps.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.title}
+                  </option>
+                ))}
+              </select>
+            )}
+            <Link href="/?new=1">
+              <Button variant="secondary" size="sm" icon={<Plus className="size-4" />}>
+                New roadmap
+              </Button>
+            </Link>
+            <Link href="/vault">
+              <Button variant="secondary" size="sm">
+                Open vault
+              </Button>
+            </Link>
+          </div>
         }
       />
 
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-10">
-        <div className="space-y-6">
+      {/* min-w-0: grid items default to min-width:auto, so without it a wide
+          child (the roadmap tree) pushes the whole page sideways on mobile. */}
+      <div className="grid min-w-0 gap-8 lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-10">
+        <div className="min-w-0 space-y-6">
+          {progress.total > 0 && progress.done === progress.total && (
+            <div className="flex items-start gap-3 rounded-xl border border-sage-200 bg-sage-50 p-4 sm:p-5">
+              <PartyPopper className="mt-0.5 size-5 shrink-0 text-sage-600" />
+              <div className="min-w-0">
+                <p className="text-[15px] font-semibold text-sage-900">
+                  Congratulations — you&apos;ve mastered {roadmap.title}!
+                </p>
+                <p className="mt-1 text-[13px] leading-snug text-sage-700/80">
+                  Every step is at mastery level. Do a final exam-night pass to
+                  lock it in, or start another roadmap.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Link href="/recall/exam-night">
+                    <Button size="sm">Final revision pass</Button>
+                  </Link>
+                  <Link href="/?new=1">
+                    <Button variant="secondary" size="sm" icon={<Plus className="size-4" />}>
+                      Start a new roadmap
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
+
           {lastSummary?.carryOver && <LastTimeCallback summary={lastSummary} />}
 
           {/* the one thing to do right now */}
@@ -183,7 +241,7 @@ export default function DashboardPage() {
           )}
         </div>
 
-        <aside className="space-y-6">
+        <aside className="min-w-0 space-y-6">
           <Card className="card-reveal space-y-4">
             <div>
               <Eyebrow>Progress</Eyebrow>

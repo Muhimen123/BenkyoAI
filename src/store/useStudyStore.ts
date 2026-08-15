@@ -35,6 +35,9 @@ interface StudyState {
   /** Raw key — sent with requests, never rendered. */
   apiKey: string | null;
   connection: KeyConnection | null;
+  /** All saved roadmaps — you can hold several at once. */
+  roadmaps: Roadmap[];
+  /** The one currently in view; kept in sync with its entry in `roadmaps`. */
   roadmap: Roadmap | null;
   materials: Material[];
   summary: Summary | null;
@@ -58,7 +61,12 @@ interface StudyState {
   setSummary: (summary: Summary | null) => void;
 
   setDraft: (patch: Partial<OnboardingDraft>) => void;
+  /** Adds a new roadmap (or updates one that already exists) and makes it active. */
   setRoadmap: (roadmap: Roadmap) => void;
+  /** Switches the active roadmap without touching any of the saved ones. */
+  switchRoadmap: (id: string) => void;
+  /** Removes a saved roadmap. If it was active, another one (or none) takes over. */
+  deleteRoadmap: (id: string) => void;
   addTopic: (topic: Topic) => void;
   setPromptOverride: (prompt: string) => void;
 
@@ -115,6 +123,7 @@ export const useStudyStore = create<StudyState>()(
     (set, get) => ({
       apiKey: null,
       connection: null,
+      roadmaps: [],
       roadmap: null,
       materials: [],
       summary: null,
@@ -174,28 +183,68 @@ export const useStudyStore = create<StudyState>()(
 
       setDraft: (patch) => set((s) => ({ draft: { ...s.draft, ...patch } })),
 
-      setRoadmap: (roadmap) => set({ roadmap }),
+      setRoadmap: (roadmap) =>
+        set((s) => ({
+          roadmap,
+          roadmaps: s.roadmaps.some((r) => r.id === roadmap.id)
+            ? s.roadmaps.map((r) => (r.id === roadmap.id ? roadmap : r))
+            : [roadmap, ...s.roadmaps],
+        })),
+
+      switchRoadmap: (id) =>
+        set((s) => {
+          const found = s.roadmaps.find((r) => r.id === id);
+          return found ? { roadmap: found } : {};
+        }),
+
+      deleteRoadmap: (id) =>
+        set((s) => {
+          const roadmaps = s.roadmaps.filter((r) => r.id !== id);
+          const roadmap =
+            s.roadmap?.id === id ? (roadmaps[0] ?? null) : s.roadmap;
+          // Drop the sessions, summaries and transcripts that belonged to it,
+          // so a deleted roadmap doesn't leave history behind.
+          const dropped = new Set(
+            s.sessions.filter((x) => x.roadmapId === id).map((x) => x.id),
+          );
+          const chats = Object.fromEntries(
+            Object.entries(s.chats).filter(([sessionId]) => !dropped.has(sessionId)),
+          );
+          return {
+            roadmaps,
+            roadmap,
+            sessions: s.sessions.filter((x) => x.roadmapId !== id),
+            summaries: s.summaries.filter((x) => x.roadmapId !== id),
+            chats,
+          };
+        }),
 
       addTopic: (topic) =>
-        set((s) =>
-          s.roadmap
-            ? {
-                roadmap: {
-                  ...s.roadmap,
-                  updatedAt: new Date().toISOString(),
-                  topics: [
-                    ...s.roadmap.topics,
-                    { ...topic, order: s.roadmap.topics.length },
-                  ],
-                },
-              }
-            : {},
-        ),
+        set((s) => {
+          if (!s.roadmap) return {};
+          const roadmap = {
+            ...s.roadmap,
+            updatedAt: new Date().toISOString(),
+            topics: [
+              ...s.roadmap.topics,
+              { ...topic, order: s.roadmap.topics.length },
+            ],
+          };
+          return {
+            roadmap,
+            roadmaps: s.roadmaps.map((r) => (r.id === roadmap.id ? roadmap : r)),
+          };
+        }),
 
       setPromptOverride: (promptOverride) =>
-        set((s) =>
-          s.roadmap ? { roadmap: { ...s.roadmap, promptOverride } } : {},
-        ),
+        set((s) => {
+          if (!s.roadmap) return {};
+          const roadmap = { ...s.roadmap, promptOverride };
+          return {
+            roadmap,
+            roadmaps: s.roadmaps.map((r) => (r.id === roadmap.id ? roadmap : r)),
+          };
+        }),
 
       recordAnswer: ({ subtopicId, delta, mistakeType }) =>
         set((s) => {
@@ -226,31 +275,40 @@ export const useStudyStore = create<StudyState>()(
           });
 
           const adjusted = mistakeType === "missing-concept";
+          const roadmap = {
+            ...s.roadmap,
+            topics,
+            updatedAt: new Date().toISOString(),
+            lastAdjustment: adjusted
+              ? {
+                  at: new Date().toISOString(),
+                  reason: `An earlier step was folded back in after ${touchedTitle.toLowerCase()}.`,
+                  affectedSubtopicIds: [subtopicId],
+                }
+              : s.roadmap.lastAdjustment,
+          };
           return {
-            roadmap: {
-              ...s.roadmap,
-              topics,
-              updatedAt: new Date().toISOString(),
-              lastAdjustment: adjusted
-                ? {
-                    at: new Date().toISOString(),
-                    reason: `An earlier step was folded back in after ${touchedTitle.toLowerCase()}.`,
-                    affectedSubtopicIds: [subtopicId],
-                  }
-                : s.roadmap.lastAdjustment,
-            },
+            roadmap,
+            roadmaps: s.roadmaps.map((r) => (r.id === roadmap.id ? roadmap : r)),
           };
         }),
 
       startSession: ({ subtopicId, subtopicTitle, topicTitle, mode }) => {
         const state = get();
+        const roadmapId = state.roadmap?.id ?? "";
+        // Scoped to this roadmap: a recall session carries no subtopic, so
+        // without the roadmap check it would match an open one from another.
         const existing = state.sessions.find(
-          (s) => !s.endedAt && s.subtopicId === subtopicId && s.mode === mode,
+          (s) =>
+            !s.endedAt &&
+            s.roadmapId === roadmapId &&
+            s.subtopicId === subtopicId &&
+            s.mode === mode,
         );
         if (existing) return existing;
         const session: Session = {
           id: uid("ses"),
-          roadmapId: state.roadmap?.id ?? "",
+          roadmapId,
           subtopicId,
           subtopicTitle,
           topicTitle,
@@ -287,6 +345,9 @@ export const useStudyStore = create<StudyState>()(
             : s.roadmap;
           return {
             roadmap,
+            roadmaps: roadmap
+              ? s.roadmaps.map((r) => (r.id === roadmap.id ? roadmap : r))
+              : s.roadmaps,
             summaries: [summary, ...s.summaries.filter((x) => x.sessionId !== summary.sessionId)],
             sessions: s.sessions.map((session) =>
               session.id === summary.sessionId
@@ -306,6 +367,7 @@ export const useStudyStore = create<StudyState>()(
 
       resetVault: () =>
         set({
+          roadmaps: [],
           roadmap: null,
           materials: [],
           summary: null,
@@ -325,12 +387,23 @@ export const useStudyStore = create<StudyState>()(
   ),
 );
 
+// Vaults saved before multiple roadmaps existed hold a single `roadmap` and no
+// list. Seed the list from it so those roadmaps don't vanish from the switcher.
+function backfillRoadmaps() {
+  const { roadmap, roadmaps } = useStudyStore.getState();
+  if (roadmap && !roadmaps.some((r) => r.id === roadmap.id)) {
+    useStudyStore.setState({ roadmaps: [roadmap, ...roadmaps] });
+  }
+}
+
 // `hydrated` sits outside the persisted slice so the first client render can
 // tell "no roadmap yet" apart from "storage hasn't loaded yet".
 useStudyStore.persist.onFinishHydration(() => {
+  backfillRoadmaps();
   useStudyStore.setState({ hydrated: true });
 });
 if (useStudyStore.persist.hasHydrated()) {
+  backfillRoadmaps();
   useStudyStore.setState({ hydrated: true });
 }
 
@@ -377,6 +450,21 @@ export function roadmapProgress(roadmap: Roadmap | null) {
 
 export function activeSession(sessions: Session[]) {
   return sessions.find((s) => !s.endedAt) ?? null;
+}
+
+/**
+ * Sessions and summaries are stored in one flat list across every roadmap, so
+ * anything shown against "the current roadmap" has to be narrowed first —
+ * otherwise switching roadmaps surfaces another one's history.
+ */
+export function sessionsFor(sessions: Session[], roadmap: Roadmap | null) {
+  if (!roadmap) return [];
+  return sessions.filter((s) => s.roadmapId === roadmap.id);
+}
+
+export function summariesFor(summaries: SessionSummary[], roadmap: Roadmap | null) {
+  if (!roadmap) return [];
+  return summaries.filter((s) => s.roadmapId === roadmap.id);
 }
 
 export type { StudyState };

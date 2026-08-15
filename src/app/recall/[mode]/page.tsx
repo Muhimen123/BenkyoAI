@@ -11,7 +11,7 @@ import { EmptyState, Eyebrow, Skeleton } from "@/components/ui/Feedback";
 import { RecallItemCard } from "@/components/recall/RecallItemCard";
 import { getRecallQueue, submitRecallAnswer } from "@/lib/api/recall";
 import { endSession } from "@/lib/api/session";
-import { useStudyStore } from "@/store/useStudyStore";
+import { sessionsFor, useStudyStore } from "@/store/useStudyStore";
 import type {
   AnswerPayload,
   AnswerResult,
@@ -51,11 +51,14 @@ export default function RecallPage() {
 
   const hydrated = useStudyStore((s) => s.hydrated);
   const roadmap = useStudyStore((s) => s.roadmap);
-  const sessions = useStudyStore((s) => s.sessions);
+  const allSessions = useStudyStore((s) => s.sessions);
   const startSession = useStudyStore((s) => s.startSession);
   const finishSession = useStudyStore((s) => s.finishSession);
   const recordAnswer = useStudyStore((s) => s.recordAnswer);
   const setExamNight = useStudyStore((s) => s.setExamNight);
+
+  // Recall only ever covers the roadmap in view.
+  const sessions = sessionsFor(allSessions, roadmap);
 
   const [queue, setQueue] = useState<RecallQueue | null>(null);
   const [index, setIndex] = useState(0);

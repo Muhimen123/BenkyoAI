@@ -84,6 +84,11 @@ export function AppShell({
         )}
       >
         {gated ? <KeyGate /> : children}
+
+        <footer className="mx-auto mt-10 max-w-5xl pb-24 text-center text-[11px] text-ink-faint sm:pb-6">
+          © {new Date().getFullYear()} BenkyoAI — copyrighted by Al Muhimen, Nishat
+          Tasnim Meem, Fariha Tasnim Amir
+        </footer>
       </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-paper/95 backdrop-blur-md sm:hidden">

@@ -398,15 +398,16 @@ function backfillRoadmaps() {
 
 // `hydrated` sits outside the persisted slice so the first client render can
 // tell "no roadmap yet" apart from "storage hasn't loaded yet".
-useStudyStore.persist.onFinishHydration(() => {
-  backfillRoadmaps();
-  useStudyStore.setState({ hydrated: true });
-});
-if (useStudyStore.persist.hasHydrated()) {
-  backfillRoadmaps();
-  useStudyStore.setState({ hydrated: true });
+if (typeof window !== "undefined") {
+  useStudyStore.persist.onFinishHydration(() => {
+    backfillRoadmaps();
+    useStudyStore.setState({ hydrated: true });
+  });
+  if (useStudyStore.persist.hasHydrated()) {
+    backfillRoadmaps();
+    useStudyStore.setState({ hydrated: true });
+  }
 }
-
 /* --------------------------------------------------------------- selectors */
 
 export function findSubtopic(roadmap: Roadmap | null, subtopicId: string) {

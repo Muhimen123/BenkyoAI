@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { extractYouTubeVideoId } from '@/lib/parsers/youtubeParser';
 import { YoutubeTranscript } from 'youtube-transcript';
-import { getGeminiClient } from '@/lib/ai';
+import { getGeminiClient, recordUsage } from '@/lib/ai';
+import { withUsage } from '@/lib/usage';
 
-export async function POST(request: NextRequest) {
+export const POST = withUsage(async (request: NextRequest) => {
   try {
     const body = await request.json();
     const { urlOrId, apiKey, model: clientModel } = body;
@@ -77,6 +78,7 @@ Please provide a comprehensive educational explanation and overview of what this
             },
           ],
         });
+        recordUsage(model, response.usageMetadata);
 
         if (response.text) {
           sourceText = response.text;
@@ -118,6 +120,7 @@ Do not format as quiz questions, flashcards, or study notes — instead, provide
           },
         ],
       });
+      recordUsage(model, response.usageMetadata);
 
       if (response.text) {
         finalSummaryText = response.text;
@@ -153,4 +156,4 @@ Do not format as quiz questions, flashcards, or study notes — instead, provide
       { status: 500 }
     );
   }
-}
+});

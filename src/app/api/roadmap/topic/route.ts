@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateGeminiResponse } from '@/lib/ai';
+import { generateJSON } from '@/lib/ai';
+import { withUsage } from '@/lib/usage';
+import { CustomTopicSchema } from '@/lib/schemas';
 import { titleCase, uid } from '@/lib/utils';
 import type { Subtopic, Topic } from '@/lib/types';
 
@@ -26,7 +28,7 @@ Guidelines:
 - Keep stubs punchy and concrete.
 `;
 
-export async function POST(request: NextRequest) {
+export const POST = withUsage(async (request: NextRequest) => {
   try {
     const apiKey = request.headers.get('x-provider-key');
     if (!apiKey) {
@@ -39,9 +41,7 @@ export async function POST(request: NextRequest) {
     const userPrompt = `Topic title: ${title}\nSubtopic titles: ${subtopicTitles?.length ? subtopicTitles.join(', ') : 'none provided'}`;
     const combinedPrompt = `${TOPIC_SYSTEM_PROMPT}\n\n${userPrompt}`;
 
-    const responseText = await generateGeminiResponse(combinedPrompt, apiKey);
-    const jsonString = responseText.replace(/```json\n?|```/g, '').trim();
-    const parsed = JSON.parse(jsonString);
+    const parsed = await generateJSON(combinedPrompt, CustomTopicSchema, apiKey);
 
     const topicId = uid('tp');
     const subtopics: Subtopic[] = (parsed.subtopics || []).map((s: any) => ({
@@ -74,4 +74,4 @@ export async function POST(request: NextRequest) {
     console.error('Add topic API error:', error);
     return NextResponse.json({ message: error.message || 'Failed to add topic' }, { status: 500 });
   }
-}
+});

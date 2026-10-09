@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateGeminiResponse } from '@/lib/ai';
-import type { MistakeType, NextAction } from '@/lib/types';
+import { generateJSON } from '@/lib/ai';
+import { withUsage } from '@/lib/usage';
+import { McqFeedbackSchema, ShortAnswerGradeSchema } from '@/lib/schemas';
+import { diagnosePractice, isCorrectOption, practiceOutcome } from '@/lib/diagnosis';
 
-export async function POST(request: NextRequest) {
+export const POST = withUsage(async (request: NextRequest) => {
   try {
     const apiKey = request.headers.get('x-provider-key');
     if (!apiKey) {
@@ -20,21 +22,13 @@ export async function POST(request: NextRequest) {
 
     if (optionId) {
       // Multiple Choice Question
-      const isCorrect = optionId.startsWith('correct_');
+      const isCorrect = isCorrectOption(optionId);
       const parts = optionId.split('_');
       const correctSuffix = parts[1] || '';
       const correctOptionId = `correct_${correctSuffix}`;
 
-      let mistakeType: MistakeType | undefined = undefined;
-      if (!isCorrect) {
-        if (elapsedSec < 8) {
-          mistakeType = 'careless';
-        } else if (optionId.startsWith('trap_')) {
-          mistakeType = 'misunderstanding';
-        } else {
-          mistakeType = 'missing-concept';
-        }
-      }
+      // Deterministic diagnosis; the model only writes the feedback.
+      const mistakeType = diagnosePractice(optionId, elapsedSec);
 
       const prompt = `The student is studying a subtopic (ID: ${subtopicId}).
 They answered a multiple-choice question.
@@ -52,14 +46,9 @@ Return a JSON object:
 }
 Respond ONLY with valid JSON.`;
 
-      const responseText = await generateGeminiResponse(prompt, apiKey);
-      const jsonString = responseText.replace(/```json\n?|```/g, '').trim();
-      const parsed = JSON.parse(jsonString);
+      const parsed = await generateJSON(prompt, McqFeedbackSchema, apiKey);
 
-      const understandingDelta = isCorrect ? 12 : (mistakeType === 'careless' ? -2 : -7);
-      const suggestedAction: NextAction = isCorrect
-        ? 'move-on'
-        : (mistakeType === 'careless' ? 'move-on' : mistakeType === 'misunderstanding' ? 'review' : 'go-deeper');
+      const { understandingDelta, suggestedAction } = practiceOutcome(mistakeType);
 
       return NextResponse.json({
         questionId,
@@ -87,9 +76,7 @@ Return a JSON object:
 }
 Respond ONLY with valid JSON.`;
 
-      const responseText = await generateGeminiResponse(prompt, apiKey);
-      const jsonString = responseText.replace(/```json\n?|```/g, '').trim();
-      const parsed = JSON.parse(jsonString);
+      const parsed = await generateJSON(prompt, ShortAnswerGradeSchema, apiKey);
 
       return NextResponse.json({
         questionId,
@@ -104,4 +91,4 @@ Respond ONLY with valid JSON.`;
     console.error('Practice Answer API error:', error);
     return NextResponse.json({ message: error.message || 'Failed to submit answer' }, { status: 500 });
   }
-}
+});

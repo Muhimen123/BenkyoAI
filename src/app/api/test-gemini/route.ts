@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateGeminiResponse } from '@/lib/ai';
+import { withUsage } from '@/lib/usage';
 
-export async function POST(request: NextRequest) {
+export const POST = withUsage(async (request: NextRequest) => {
   try {
     const body = await request.json();
     const prompt = body.prompt || 'hello';
@@ -18,4 +19,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

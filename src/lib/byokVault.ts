@@ -13,6 +13,7 @@ export const VAULT_STORAGE_KEY = "benkyoai.vault";
 export interface StoredCredentials {
   provider: ProviderId;
   apiKey: string;
+  model?: string;
 }
 
 export function readCredentials(): StoredCredentials | null {
@@ -21,12 +22,12 @@ export function readCredentials(): StoredCredentials | null {
     const raw = window.localStorage.getItem(VAULT_STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as {
-      state?: { apiKey?: string; connection?: { provider: ProviderId } };
+      state?: { apiKey?: string; connection?: { provider: ProviderId; model?: string } };
     };
     const apiKey = parsed.state?.apiKey;
     const provider = parsed.state?.connection?.provider;
     if (!apiKey || !provider) return null;
-    return { provider, apiKey };
+    return { provider, apiKey, model: parsed.state?.connection?.model };
   } catch {
     return null;
   }

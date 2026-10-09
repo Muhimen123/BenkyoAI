@@ -29,6 +29,8 @@ import {
   submitAnswer,
 } from "@/lib/api/practice";
 import { endSession } from "@/lib/api/session";
+import { retrieve, type Source } from "@/lib/rag";
+import { citedTags } from "@/lib/prompts";
 import { findSubtopic, useStudyStore, weakPoints } from "@/store/useStudyStore";
 import type {
   AnswerPayload,
@@ -57,6 +59,7 @@ export default function SubtopicPage() {
 
   const [phase, setPhase] = useState<Phase>("learn");
   const [paragraphs, setParagraphs] = useState<string[] | null>(null);
+  const [sources, setSources] = useState<Source[]>([]);
   const [extra, setExtra] = useState<string[]>([]);
   const [rewriting, setRewriting] = useState(false);
   const [set, setSet] = useState<PracticeSet | null>(null);
@@ -94,14 +97,22 @@ export default function SubtopicPage() {
     let alive = true;
     setParagraphs(null);
     setExtra([]);
-    getExplanation({
-      subtopicId: found.subtopic.id,
-      title: found.subtopic.title,
-      stub: found.subtopic.explanationStub,
-      depth,
-    })
-      .then((p) => alive && setParagraphs(p))
-      .catch(() => alive && setParagraphs([found.subtopic.explanationStub]));
+    setSources([]);
+    (async () => {
+      // Ground the explanation in the learner's own material when it has any.
+      const retrieved = await retrieve(`${found.subtopic.title}. ${found.subtopic.explanationStub}`);
+      const p = await getExplanation({
+        subtopicId: found.subtopic.id,
+        title: found.subtopic.title,
+        stub: found.subtopic.explanationStub,
+        depth,
+        sources: retrieved,
+      });
+      if (!alive) return;
+      const cited = new Set(citedTags(p.join(" ")));
+      setSources(retrieved.filter((s) => cited.has(s.tag)));
+      setParagraphs(p);
+    })().catch(() => alive && setParagraphs([found.subtopic.explanationStub]));
     return () => {
       alive = false;
     };
@@ -272,6 +283,18 @@ export default function SubtopicPage() {
                         {paragraph}
                       </p>
                     ))}
+                    {sources.length > 0 && (
+                      <div className="rounded-lg border border-line bg-sunk px-3.5 py-3">
+                        <Eyebrow>From your material</Eyebrow>
+                        <ul className="mt-2 space-y-1.5 text-[13px] leading-snug text-ink-soft">
+                          {sources.map((s) => (
+                            <li key={s.tag}>
+                              <span className="font-medium text-ink">[{s.tag}]</span> {s.label}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 )}
 

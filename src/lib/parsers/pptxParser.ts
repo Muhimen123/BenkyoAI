@@ -1,31 +1,28 @@
 import { ParseOptions, ParseResult } from './types';
+import { extractPptx } from '../rag/extract';
 
 /**
- * PowerPoint Presentation Parser (Stub / Future Implementation)
- * Will parse .pptx slides, speaker notes, and shapes.
+ * PowerPoint (.pptx) parser: reads the slide XML straight out of the archive
+ * in the browser and returns the visible text, one section per slide.
  */
 export async function parsePptx(
   input: File | string,
   options?: ParseOptions
 ): Promise<ParseResult> {
-  const fileName = input instanceof File ? input.name : 'Presentation.pptx';
-  const fileSize = input instanceof File ? input.size : 0;
+  if (typeof input === 'string') {
+    return { text: input, metadata: { sourceType: 'pptx', options } };
+  }
 
-  // Future implementation note:
-  // 1. Unzip .pptx archive (OpenXML format) or parse slides XML
-  // 2. Extract slide titles, bullet points, and speaker notes
-  // 3. Organize into structured lecture notes with AI enhancement
-
+  const slides = await extractPptx(await input.arrayBuffer());
   return {
-    text: `[PowerPoint Parser Stub]\nFile Name: ${fileName}\n\nPowerPoint (.pptx) parsing is queued for future implementation. When implemented, this will extract slide contents, speaker notes, and outline structure into comprehensive study notes.`,
-    title: fileName.replace(/\.[^/.]+$/, ''),
+    text: slides.map((s) => `### ${s.location}\n${s.text}`).join('\n\n'),
+    title: input.name.replace(/\.[^/.]+$/, ''),
     metadata: {
       sourceType: 'pptx',
-      originalName: fileName,
-      size: fileSize,
-      status: 'stub_pending_implementation',
-      options,
+      originalName: input.name,
+      size: input.size,
+      slideCount: slides.length,
     },
-    warnings: ['PowerPoint parser is currently a stub and will be fully implemented in a future update.'],
+    warnings: slides.length ? undefined : ['No slide text found (the deck may be images only).'],
   };
 }

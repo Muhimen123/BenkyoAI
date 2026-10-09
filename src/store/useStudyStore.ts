@@ -8,6 +8,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { VAULT_STORAGE_KEY, maskKey } from "@/lib/byokVault";
 import { clamp, uid } from "@/lib/utils";
+import { gradeFor, isDue, schedule } from "@/lib/srs";
 import type {
   ChatMessage,
   Depth,
@@ -22,6 +23,7 @@ import type {
   Subtopic,
   Summary,
   Topic,
+  UsageEntry,
 } from "@/lib/types";
 
 export interface OnboardingDraft {
@@ -47,9 +49,11 @@ interface StudyState {
   depth: Depth;
   examNight: boolean;
   draft: OnboardingDraft;
+  /** Token usage of the learner's own key, newest first. */
+  usage: UsageEntry[];
   hydrated: boolean;
 
-  connectKey: (provider: ProviderId, apiKey: string) => void;
+  connectKey: (provider: ProviderId, apiKey: string, model?: string) => void;
   disconnectKey: () => void;
   flagKeyInvalid: () => void;
 
@@ -57,6 +61,7 @@ interface StudyState {
   setExamNight: (on: boolean) => void;
 
   addMaterial: (material: Omit<Material, "id" | "addedAt" | "status">) => Material;
+  updateMaterial: (id: string, patch: Partial<Material>) => void;
   removeMaterial: (id: string) => void;
   setSummary: (summary: Summary | null) => void;
 
@@ -87,8 +92,13 @@ interface StudyState {
   appendChat: (sessionId: string, message: ChatMessage) => void;
   replaceChat: (sessionId: string, messages: ChatMessage[]) => void;
 
+  recordUsage: (entries: Omit<UsageEntry, "at" | "roadmapId">[], roadmapId?: string) => void;
+
   resetVault: () => void;
 }
+
+/** Enough history for the meter without letting localStorage grow unbounded. */
+const USAGE_LIMIT = 1000;
 
 const emptyDraft: OnboardingDraft = {
   topic: "",
@@ -133,14 +143,16 @@ export const useStudyStore = create<StudyState>()(
       depth: "balanced",
       examNight: false,
       draft: emptyDraft,
+      usage: [],
       hydrated: false,
 
-      connectKey: (provider, apiKey) =>
+      connectKey: (provider, apiKey, model) =>
         set({
           apiKey,
           connection: {
             provider,
             keyTail: maskKey(apiKey),
+            model,
             connectedAt: new Date().toISOString(),
             lastCheckedAt: new Date().toISOString(),
             status: "connected",
@@ -175,6 +187,11 @@ export const useStudyStore = create<StudyState>()(
         set((s) => ({ materials: [created, ...s.materials] }));
         return created;
       },
+
+      updateMaterial: (id, patch) =>
+        set((s) => ({
+          materials: s.materials.map((m) => (m.id === id ? { ...m, ...patch } : m)),
+        })),
 
       removeMaterial: (id) =>
         set((s) => ({ materials: s.materials.filter((m) => m.id !== id) })),
@@ -260,6 +277,7 @@ export const useStudyStore = create<StudyState>()(
                 ...sub,
                 mastery,
                 status: statusFor(mastery, true),
+                review: schedule(sub.review, gradeFor({ delta, mistakeType })),
                 // A misunderstanding or missing concept marks this for inline review.
                 isWeakPoint:
                   mistakeType === "careless"
@@ -275,15 +293,39 @@ export const useStudyStore = create<StudyState>()(
           });
 
           const adjusted = mistakeType === "missing-concept";
+          // A missing concept means a foundation is shaky, so walk the
+          // prerequisite graph back one step and fold those subtopics in for review.
+          const foundations = adjusted
+            ? (findSubtopic(s.roadmap, subtopicId)?.subtopic.prerequisiteIds ?? [])
+            : [];
+          const foundationTitles: string[] = [];
+          const routed = foundations.length
+            ? topics.map((topic) =>
+                topic.subtopics.some((sub) => foundations.includes(sub.id))
+                  ? rollUp({
+                      ...topic,
+                      subtopics: topic.subtopics.map((sub) => {
+                        if (!foundations.includes(sub.id)) return sub;
+                        foundationTitles.push(sub.title);
+                        return { ...sub, isWeakPoint: true };
+                      }),
+                    })
+                  : topic,
+              )
+            : topics;
           const roadmap = {
             ...s.roadmap,
-            topics,
+            topics: routed,
             updatedAt: new Date().toISOString(),
             lastAdjustment: adjusted
               ? {
                   at: new Date().toISOString(),
-                  reason: `An earlier step was folded back in after ${touchedTitle.toLowerCase()}.`,
-                  affectedSubtopicIds: [subtopicId],
+                  reason: foundationTitles.length
+                    ? `A missing foundation showed up in ${touchedTitle.toLowerCase()}, so ${foundationTitles
+                        .map((t) => t.toLowerCase())
+                        .join(" and ")} ${foundationTitles.length > 1 ? "were" : "was"} folded back in for review.`
+                    : `An earlier step was folded back in after ${touchedTitle.toLowerCase()}.`,
+                  affectedSubtopicIds: [subtopicId, ...foundations],
                 }
               : s.roadmap.lastAdjustment,
           };
@@ -365,8 +407,17 @@ export const useStudyStore = create<StudyState>()(
       replaceChat: (sessionId, messages) =>
         set((s) => ({ chats: { ...s.chats, [sessionId]: messages } })),
 
+      recordUsage: (entries, forRoadmap) =>
+        set((s) => {
+          const at = new Date().toISOString();
+          const roadmapId = forRoadmap ?? s.roadmap?.id;
+          const added = entries.map((e) => ({ ...e, at, roadmapId }));
+          return { usage: [...added, ...s.usage].slice(0, USAGE_LIMIT) };
+        }),
+
       resetVault: () =>
         set({
+          usage: [],
           roadmaps: [],
           roadmap: null,
           materials: [],
@@ -436,6 +487,14 @@ export function weakPoints(roadmap: Roadmap | null) {
     t.subtopics
       .filter((s) => s.isWeakPoint)
       .map((s) => ({ id: s.id, title: s.title, topicTitle: t.title })),
+  );
+}
+
+/** Subtopics FSRS says are due for review now. */
+export function dueReviews(roadmap: Roadmap | null) {
+  if (!roadmap) return [];
+  return roadmap.topics.flatMap((t) =>
+    t.subtopics.filter((s) => isDue(s)).map((s) => ({ id: s.id, title: s.title, topicTitle: t.title })),
   );
 }
 

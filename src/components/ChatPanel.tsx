@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { CornerDownLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { sendChatMessage } from "@/lib/api/chat";
+import { retrieve } from "@/lib/rag";
 import { useStudyStore } from "@/store/useStudyStore";
 import { cn, uid } from "@/lib/utils";
 import type { ChatMessage } from "@/lib/types";
@@ -52,6 +53,7 @@ export function ChatPanel({
           content: m.content,
         })),
         context: { roadmapTitle, subtopicTitle, depth },
+        sources: await retrieve(`${subtopicTitle ?? roadmapTitle}: ${content}`, 3),
       });
       appendChat(sessionId, reply);
     } catch {

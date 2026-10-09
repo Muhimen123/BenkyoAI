@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateGeminiResponse } from '@/lib/ai';
-import type { MistakeType, NextAction } from '@/lib/types';
+import { generateJSON } from '@/lib/ai';
+import { withUsage } from '@/lib/usage';
+import { RecallFeedbackSchema, RecallShortGradeSchema } from '@/lib/schemas';
+import type { NextAction } from '@/lib/types';
+import { diagnoseRecall, isCorrectOption } from '@/lib/diagnosis';
 
-export async function POST(request: NextRequest) {
+export const POST = withUsage(async (request: NextRequest) => {
   try {
     const apiKey = request.headers.get('x-provider-key');
     if (!apiKey) {
@@ -14,14 +17,12 @@ export async function POST(request: NextRequest) {
 
     if (optionId) {
       // Multiple Choice Question
-      const isCorrect = optionId.startsWith('correct_');
+      const isCorrect = isCorrectOption(optionId);
       const parts = optionId.split('_');
       const correctSuffix = parts[1] || '';
       const correctOptionId = `correct_${correctSuffix}`;
 
-      const mistakeType: MistakeType | undefined = isCorrect
-        ? undefined
-        : (elapsedSec < 6 ? 'careless' : 'misunderstanding');
+      const mistakeType = diagnoseRecall(optionId, elapsedSec);
 
       const prompt = `The student is doing active recall for a subtopic (ID: ${subtopicId}).
 They answered a multiple-choice question.
@@ -35,9 +36,7 @@ Return a JSON object:
 }
 Respond ONLY with valid JSON.`;
 
-      const responseText = await generateGeminiResponse(prompt, apiKey);
-      const jsonString = responseText.replace(/```json\n?|```/g, '').trim();
-      const parsed = JSON.parse(jsonString);
+      const parsed = await generateJSON(prompt, RecallFeedbackSchema, apiKey);
 
       const understandingDelta = isCorrect ? 10 : -5;
       const suggestedAction: NextAction = isCorrect ? 'move-on' : 'review';
@@ -66,9 +65,7 @@ Return a JSON object:
 }
 Respond ONLY with valid JSON.`;
 
-      const responseText = await generateGeminiResponse(prompt, apiKey);
-      const jsonString = responseText.replace(/```json\n?|```/g, '').trim();
-      const parsed = JSON.parse(jsonString);
+      const parsed = await generateJSON(prompt, RecallShortGradeSchema, apiKey);
 
       const isCorrect = parsed.correct;
       const suggestedAction: NextAction = isCorrect ? 'move-on' : 'review';
@@ -86,4 +83,4 @@ Respond ONLY with valid JSON.`;
     console.error('Recall Answer API grading error:', error);
     return NextResponse.json({ message: error.message || 'Failed to submit recall answer' }, { status: 500 });
   }
-}
+});

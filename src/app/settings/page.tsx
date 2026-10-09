@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { KeyRound, ShieldCheck, Trash2 } from "lucide-react";
+import { Download, KeyRound, ShieldCheck, Trash2 } from "lucide-react";
 import { AppShell, PageHead } from "@/components/shell/AppShell";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -14,6 +14,8 @@ import { ByokSetup } from "@/components/byok/ByokSetup";
 import { getProvider } from "@/lib/api/providers";
 import { useStudyStore } from "@/store/useStudyStore";
 import { daysUntil, formatDate, relativeTime } from "@/lib/utils";
+import { downloadVaultExport } from "@/lib/vaultExport";
+import { clearChunks } from "@/lib/rag/store";
 
 export default function SettingsPage() {
   const hydrated = useStudyStore((s) => s.hydrated);
@@ -134,14 +136,28 @@ export default function SettingsPage() {
             else. Clearing them can't be undone, and there's no backup to restore
             from.
           </p>
-          <Button
-            variant="danger"
-            size="sm"
-            icon={<Trash2 className="size-3.5" />}
-            onClick={() => setConfirmClear(true)}
-          >
-            Clear my vault
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<Download className="size-3.5" />}
+              onClick={() => downloadVaultExport(useStudyStore.getState())}
+            >
+              Export my vault
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              icon={<Trash2 className="size-3.5" />}
+              onClick={() => setConfirmClear(true)}
+            >
+              Clear my vault
+            </Button>
+          </div>
+          <p className="border-t border-line pt-3 text-[12px] leading-snug text-ink-faint">
+            The export is a JSON backup without your key. Point the BenkyoAI MCP
+            server at it to study from Claude, Cursor or any MCP client.
+          </p>
         </Card>
       </div>
 
@@ -211,6 +227,7 @@ export default function SettingsPage() {
               size="sm"
               onClick={() => {
                 resetVault();
+                clearChunks().catch(() => {});
                 setConfirmClear(false);
               }}
             >

@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateGeminiResponse } from '@/lib/ai';
+import { generateJSON } from '@/lib/ai';
+import { withUsage } from '@/lib/usage';
+import { SessionSummarySchema } from '@/lib/schemas';
 import { SESSION_SUMMARY_SYSTEM_PROMPT } from '@/lib/prompts';
 import { uid } from '@/lib/utils';
 import type { MistakeType, GrowthCallout } from '@/lib/types';
 
-export async function POST(request: NextRequest) {
+export const POST = withUsage(async (request: NextRequest) => {
   try {
     const apiKey = request.headers.get('x-provider-key');
     if (!apiKey) {
@@ -68,9 +70,7 @@ Answered details: ${JSON.stringify(answered)}`;
     } : undefined;
 
     try {
-      const responseText = await generateGeminiResponse(combinedPrompt, apiKey);
-      const jsonString = responseText.replace(/```json\n?|```/g, '').trim();
-      const parsed = JSON.parse(jsonString);
+      const parsed = await generateJSON(combinedPrompt, SessionSummarySchema, apiKey);
 
       if (parsed.growth) {
         growth = parsed.growth.map((g: any) => ({
@@ -120,4 +120,4 @@ Answered details: ${JSON.stringify(answered)}`;
     console.error('Session summary API error:', error);
     return NextResponse.json({ message: error.message || 'Failed to summarize session' }, { status: 500 });
   }
-}
+});

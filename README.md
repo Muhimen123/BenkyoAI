@@ -139,8 +139,28 @@ npm run dev      # Start development server
 npm run build    # Production build
 npm start        # Start production server
 npm run lint     # Run ESLint
+npm test         # Unit tests (diagnosis, FSRS, retrieval, schemas, providers) + MCP end-to-end test
 ```
 
 This project uses [Next.js 16's built-in MCP](https://nextjs.org/docs) at `/_next/mcp` for runtime diagnostics during development.
+
+Full technical documentation lives at [`/docs`](https://benkyoai.vercel.app/docs).
+
+## 🔌 BenkyoAI MCP server
+
+Study from Claude Desktop, Claude Code, Cursor or any MCP client. In the app, go to **Settings → Export my vault** (the file never contains your API key), then add:
+
+```json
+{
+  "mcpServers": {
+    "benkyoai": {
+      "command": "node",
+      "args": ["/path/to/BenkyoAI/mcp/server.mjs", "/path/to/benkyoai-vault.json"]
+    }
+  }
+}
+```
+
+Tools: `list_roadmaps`, `get_roadmap`, `get_weak_points`, `get_due_reviews`, `get_session_history`, `get_study_plan`, `get_usage`. Prompts: `quiz_me`, `explain_back`. Read-only, stdio only. Try it with the bundled sample: `npm run mcp -- mcp/sample-vault.json`.
 
 ---

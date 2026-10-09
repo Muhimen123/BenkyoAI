@@ -16,6 +16,8 @@ import { Textarea } from "@/components/ui/Field";
 import { useStudyStore } from "@/store/useStudyStore";
 import type { Material, MaterialKind } from "@/lib/types";
 import { cn, relativeTime } from "@/lib/utils";
+import { ingestFile, ingestSections } from "@/lib/rag";
+import { deleteChunksFor } from "@/lib/rag/store";
 
 const ICONS: Record<MaterialKind, typeof FileText> = {
   pdf: FileText,
@@ -36,6 +38,14 @@ function kindFor(name: string): MaterialKind {
   return "note";
 }
 
+function indexLabel(material: Material) {
+  if (material.status === "processing") return "indexing…";
+  if (material.passages === undefined) return "not indexed";
+  if (material.passages === 0) return "stored, not searchable";
+  const count = `${material.passages} passage${material.passages === 1 ? "" : "s"}`;
+  return `${count} · ${material.semantic ? "semantic + keyword" : "keyword"} search`;
+}
+
 function sizeLabel(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
@@ -52,6 +62,7 @@ export function MaterialInput({
   const materials = useStudyStore((s) => s.materials);
   const addMaterial = useStudyStore((s) => s.addMaterial);
   const removeMaterial = useStudyStore((s) => s.removeMaterial);
+  const updateMaterial = useStudyStore((s) => s.updateMaterial);
   const fileRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [notes, setNotes] = useState("");
@@ -59,25 +70,40 @@ export function MaterialInput({
 
   function addFiles(files: FileList | null) {
     if (!files) return;
-    Array.from(files).forEach((file) =>
-      addMaterial({
+    Array.from(files).forEach((file) => {
+      const material = addMaterial({
         name: file.name,
         kind: kindFor(file.name),
         sizeLabel: sizeLabel(file.size),
         linkedTopicIds: [],
-      }),
-    );
+      });
+      index(material.id, () => ingestFile(material, file));
+    });
+  }
+
+  /** Extracts, chunks and embeds the material into the in-browser retrieval index. */
+  function index(id: string, run: () => Promise<{ passages: number; semantic: boolean }>) {
+    updateMaterial(id, { status: "processing" });
+    run()
+      .then((result) => updateMaterial(id, { status: "ready", ...result }))
+      .catch(() => updateMaterial(id, { status: "ready", passages: 0, semantic: false }));
+  }
+
+  function remove(id: string) {
+    removeMaterial(id);
+    deleteChunksFor(id).catch(() => {});
   }
 
   function addNotes() {
     const text = notes.trim();
     if (!text) return;
-    addMaterial({
+    const material = addMaterial({
       name: text.split("\n")[0].slice(0, 60) || "Pasted notes",
       kind: "note",
       sizeLabel: `${text.split(/\s+/).length} words`,
       linkedTopicIds: [],
     });
+    index(material.id, () => ingestSections(material, [{ location: "notes", text }]));
     setNotes("");
     setShowNotes(false);
   }
@@ -157,11 +183,13 @@ export function MaterialInput({
                   <p className="truncate text-sm text-ink">{material.name}</p>
                   <p className="label-data text-ink-faint">
                     {material.kind} · {material.sizeLabel} · {relativeTime(material.addedAt)}
+                    {" · "}
+                    {indexLabel(material)}
                   </p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => removeMaterial(material.id)}
+                  onClick={() => remove(material.id)}
                   aria-label={`Remove ${material.name}`}
                   className="rounded-md p-1.5 text-ink-faint opacity-0 transition-opacity group-hover:opacity-100 hover:bg-sunk hover:text-clay-700 focus-visible:opacity-100"
                 >

@@ -4,10 +4,11 @@
  * Every shape here mirrors what the eventual `/api/*` routes will return, so a
  * real route handler can be dropped in behind `lib/api/*` without UI rework.
  */
+import type { ReviewCard } from "./srs";
 
 /* ------------------------------------------------------------------ BYOK */
 
-export type ProviderId = "google" | "openai" | "anthropic";
+export type ProviderId = "google" | "openai" | "anthropic" | "ollama";
 
 export interface ProviderInfo {
   id: ProviderId;
@@ -18,6 +19,10 @@ export interface ProviderInfo {
   /** Plain-language steps shown in the guided setup. */
   steps: string[];
   freeTierNote: string;
+  /** Model used when the learner doesn't name one (non-Gemini providers). */
+  defaultModel?: string;
+  /** What the credential field asks for: a secret key, or a local address. */
+  credentialLabel?: string;
 }
 
 /** What the Vault holds about the connection. The raw key is never rendered. */
@@ -25,6 +30,8 @@ export interface KeyConnection {
   provider: ProviderId;
   /** Last 4 characters only — for display. */
   keyTail: string;
+  /** Model chosen for non-Gemini providers; Gemini picks its own. */
+  model?: string;
   connectedAt: string;
   status: "connected" | "invalid" | "unverified";
   lastCheckedAt: string;
@@ -56,6 +63,10 @@ export interface Material {
   addedAt: string;
   status: "processing" | "ready";
   linkedTopicIds: string[];
+  /** Searchable passages extracted into the retrieval index (0 = not readable as text). */
+  passages?: number;
+  /** True when the passages also have embeddings (semantic search), not just keywords. */
+  semantic?: boolean;
 }
 
 export interface Summary {
@@ -85,6 +96,10 @@ export interface Subtopic {
   isWeakPoint: boolean;
   estimatedMin: number;
   sessionIds: string[];
+  /** Earlier subtopics this one builds on (edges of the prerequisite graph). */
+  prerequisiteIds?: string[];
+  /** FSRS memory state; set after the first answer on this subtopic. */
+  review?: ReviewCard;
 }
 
 export interface Topic {
@@ -139,6 +154,8 @@ export interface CalibrationAnswer {
 export interface RoadmapRequest {
   topic: string;
   materialIds: string[];
+  /** Key points summarised from the learner's own material. */
+  materialKeyPoints?: string[];
   calibration: CalibrationAnswer[];
   purpose: Purpose;
   deadline?: string;
@@ -292,6 +309,21 @@ export interface ChatMessage {
 }
 
 export type ExplainMode = "differently" | "simpler" | "deeper";
+
+/* ------------------------------------------------------------------ Usage */
+
+/** One Gemini call, as reported by the `x-benkyo-usage` response header. */
+export interface UsageEntry {
+  at: string;
+  roadmapId?: string;
+  /** The API route that made the call, e.g. "/api/practice/set". */
+  path: string;
+  /** "google", "openai", "anthropic" or "ollama". Older entries are Gemini. */
+  provider?: string;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+}
 
 /* -------------------------------------------------------------- Vault (OPFS) */
 

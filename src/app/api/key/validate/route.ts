@@ -1,6 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import type { KeyValidationResult } from "@/lib/types";
+import { DEFAULT_MODELS, ollamaBaseUrl } from "@/lib/providerAdapters";
+
+/** Ollama has no key: check the local server answers and the model is pulled. */
+async function probeOllama(address: string, model?: string): Promise<KeyValidationResult> {
+  const wanted = model || DEFAULT_MODELS.ollama;
+  let base: string;
+  try {
+    base = ollamaBaseUrl(address);
+  } catch (err: any) {
+    return { valid: false, provider: "ollama", message: err.message };
+  }
+  try {
+    const res = await fetch(`${base}/api/tags`);
+    const data = (await res.json()) as { models?: { name: string }[] };
+    const names = (data.models ?? []).map((m) => m.name);
+    const found = names.some((n) => n === wanted || n === `${wanted}:latest`);
+    if (!found) {
+      return {
+        valid: false,
+        provider: "ollama",
+        message: `Ollama is running but ${wanted} isn't installed. Run: ollama pull ${wanted}`,
+      };
+    }
+    return { valid: true, provider: "ollama", message: `Connected to ${wanted} on this machine.`, modelHint: wanted };
+  } catch {
+    return {
+      valid: false,
+      provider: "ollama",
+      message: "Couldn't reach Ollama. Start it, and run BenkyoAI locally (npm run dev).",
+    };
+  }
+}
 
 /**
  * POST /api/key/validate
@@ -14,8 +46,8 @@ import type { KeyValidationResult } from "@/lib/types";
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    const body = (await request.json()) as { provider?: string; apiKey?: string };
-    const { provider = "google", apiKey = "" } = body;
+    const body = (await request.json()) as { provider?: string; apiKey?: string; model?: string };
+    const { provider = "google", apiKey = "", model } = body;
 
     const key = apiKey.trim();
 
@@ -107,7 +139,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       });
     }
 
-    // OpenAI / Anthropic — prefix check only for now (no server-side secret needed)
+    if (provider === "ollama") {
+      return NextResponse.json<KeyValidationResult>(await probeOllama(key, model));
+    }
+
     const prefixMap: Record<string, string> = {
       openai: "sk-",
       anthropic: "sk-ant-",
@@ -121,10 +156,35 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       });
     }
 
+    // Listing models is free and fails with 401 on a bad key.
+    const probe =
+      provider === "anthropic"
+        ? await fetch("https://api.anthropic.com/v1/models", {
+            headers: { "x-api-key": key, "anthropic-version": "2023-06-01" },
+          })
+        : await fetch("https://api.openai.com/v1/models", {
+            headers: { authorization: `Bearer ${key}` },
+          });
+    if (probe.status === 401 || probe.status === 403) {
+      return NextResponse.json<KeyValidationResult>({
+        valid: false,
+        provider: provider as any,
+        message: "The provider rejected this key. Check it's active and copied in full.",
+      });
+    }
+    if (!probe.ok) {
+      return NextResponse.json<KeyValidationResult>({
+        valid: false,
+        provider: provider as any,
+        message: `The provider didn't answer (${probe.status}). Try again in a moment.`,
+      });
+    }
+
     return NextResponse.json<KeyValidationResult>({
       valid: true,
       provider: provider as any,
       message: `Connected. Your key stays on this device.`,
+      modelHint: model,
     });
   } catch (error: any) {
     console.error("Key validation error:", error);

@@ -124,6 +124,31 @@ export function fuse(lists: Hit[][], k = 60): Hit[] {
   return [...scores.values()].sort((a, b) => b.score - a.score);
 }
 
+/** Above this cosine similarity two chunks say the same thing. */
+export const DUPLICATE_COSINE = 0.95;
+
+/**
+ * Drops near-duplicate passages (the same paragraph in two uploads, or a
+ * slide repeated in the notes) so each source slot sent to the model carries
+ * new information. Compares embeddings when both chunks have them, and
+ * whitespace/case-normalised text otherwise.
+ */
+export function dedupe(hits: Hit[], limit: number): Hit[] {
+  const kept: Hit[] = [];
+  const norm = (t: string) => t.toLowerCase().replace(/\s+/g, " ").trim();
+  for (const hit of hits) {
+    const dup = kept.some(({ chunk }) => {
+      const a = chunk.embedding;
+      const b = hit.chunk.embedding;
+      if (a?.length && a.length === b?.length) return cosine(a, b) >= DUPLICATE_COSINE;
+      return norm(chunk.text) === norm(hit.chunk.text);
+    });
+    if (!dup) kept.push(hit);
+    if (kept.length === limit) break;
+  }
+  return kept;
+}
+
 export function hybridSearch(
   query: string,
   chunks: Chunk[],
@@ -132,5 +157,5 @@ export function hybridSearch(
 ): Hit[] {
   const keyword = bm25(query, chunks).slice(0, 20);
   const vector = queryEmbedding ? semantic(queryEmbedding, chunks).slice(0, 20) : [];
-  return fuse([keyword, vector]).slice(0, limit);
+  return dedupe(fuse([keyword, vector]), limit);
 }

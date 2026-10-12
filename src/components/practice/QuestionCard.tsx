@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Sparkles, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -29,13 +29,8 @@ export function QuestionCard({
 }) {
   const [selected, setSelected] = useState<string | undefined>(chosenOptionId);
   const [text, setText] = useState("");
-  const started = useRef(Date.now());
-
-  useEffect(() => {
-    started.current = Date.now();
-    setSelected(undefined);
-    setText("");
-  }, [question.id]);
+  // The parent remounts this card per question (key), so state and the timer start fresh.
+  const [startedAt] = useState(() => Date.now());
 
   const ready = question.kind === "mcq" ? Boolean(selected) : text.trim().length > 0;
 
@@ -46,7 +41,7 @@ export function QuestionCard({
       optionId: question.kind === "mcq" ? selected : undefined,
       text: question.kind === "mcq" ? undefined : text,
       prompt: question.prompt,
-      elapsedSec: Math.round((Date.now() - started.current) / 1000),
+      elapsedSec: Math.round((Date.now() - startedAt) / 1000),
     });
   }
 

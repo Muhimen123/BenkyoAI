@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Check, History, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -36,14 +36,9 @@ export function RecallItemCard({
 }) {
   const [selected, setSelected] = useState<string | undefined>();
   const [text, setText] = useState("");
-  const started = useRef(Date.now());
+  // The parent remounts this card per item (key), so state and the timer start fresh.
+  const [startedAt] = useState(() => Date.now());
   const reason = REASON[item.reason];
-
-  useEffect(() => {
-    started.current = Date.now();
-    setSelected(undefined);
-    setText("");
-  }, [item.id]);
 
   const ready = item.kind === "mcq" ? Boolean(selected) : text.trim().length > 0;
 
@@ -143,7 +138,7 @@ export function RecallItemCard({
               optionId: item.kind === "mcq" ? selected : undefined,
               text: item.kind === "mcq" ? undefined : text,
               prompt: item.prompt,
-              elapsedSec: Math.round((Date.now() - started.current) / 1000),
+              elapsedSec: Math.round((Date.now() - startedAt) / 1000),
             })
           }
         >

@@ -310,7 +310,7 @@ export default async function DocsPage() {
               <p className="text-[13px] leading-relaxed text-ink-soft">
                 Tools: list_roadmaps, get_roadmap, get_weak_points, get_due_reviews,
                 get_session_history, get_study_plan, get_usage. Prompts: quiz_me,
-                explain_back. Read-only, stdio only, re-reads the file on every call.
+                explain_back. Read-only, stdio or loopback Streamable HTTP, re-reads the file on every call.
               </p>
             </Section>
             <Section id="performance" title="Performance and scalability">

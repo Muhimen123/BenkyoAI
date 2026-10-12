@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { bm25, chunkSections, cosine, fuse, hybridSearch, type Chunk } from "@/lib/rag/search";
+import { bm25, chunkSections, cosine, dedupe, fuse, hybridSearch, type Chunk } from "@/lib/rag/search";
 import { extractPptx, slideText } from "@/lib/rag/extract";
 
 const chunk = (id: string, text: string, embedding?: number[]): Chunk => ({
@@ -49,6 +49,18 @@ test("hybrid search finds a paraphrase that keywords alone miss", () => {
 test("hybrid search falls back to keywords without embeddings", () => {
   const hits = hybridSearch("chloroplasts light", corpus, null, 1);
   assert.equal(hits[0].chunk.id, "1");
+});
+
+test("near-duplicate passages take one source slot, not two", () => {
+  const hits = [
+    chunk("a", "Mitochondria make ATP.", [1, 0, 0]),
+    chunk("b", "Mitochondria  make ATP.", [0.99, 0.05, 0]),
+    chunk("c", "Ribosomes build proteins.", [0, 1, 0]),
+    chunk("d", "ribosomes build PROTEINS."),
+    chunk("e", "Lysosomes digest waste."),
+  ].map((c) => ({ chunk: c, score: 0 }));
+  assert.deepEqual(dedupe(hits, 4).map((h) => h.chunk.id), ["a", "c", "e"]);
+  assert.deepEqual(dedupe(hits, 1).map((h) => h.chunk.id), ["a"]);
 });
 
 test("chunks stay within one page, respect the size limit and overlap", () => {

@@ -252,6 +252,7 @@ export default function RecallPage() {
         <Card className="max-w-2xl space-y-4">
           {actionError && <ErrorNote>{actionError}</ErrorNote>}
           <RecallItemCard
+            key={item.id}
             item={item}
             index={index}
             total={queue.items.length}

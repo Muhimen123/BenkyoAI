@@ -402,6 +402,7 @@ export default function SubtopicPage() {
               ) : (
                 <div className="space-y-5">
                   <QuestionCard
+                    key={question.id}
                     question={question}
                     index={index}
                     total={set.questions.length}

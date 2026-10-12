@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { generateJSON, generateText } from '@/lib/ai';
 import { withUsage } from '@/lib/usage';
 import { ExplanationParagraphsSchema, SourcesSchema } from '@/lib/schemas';
-import { CHAT_SYSTEM_PROMPT, citedTags, sourcesBlock } from '@/lib/prompts';
+import { CHAT_SYSTEM_PROMPT, chatHistory, citedTags, sourcesBlock } from '@/lib/prompts';
 import { uid } from '@/lib/utils';
 import type { ChatMessage } from '@/lib/types';
 
@@ -75,8 +75,8 @@ Respond with a single string containing only the explanation paragraph.`;
       contextStr += `\nCurrent Subtopic: ${context.subtopicTitle}`;
     }
 
-    // Format the conversation history
-    const history = messages.map((m: any) => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n');
+    // Format the recent conversation history (sliding window)
+    const history = chatHistory(messages);
 
     const userPrompt = `Context:\n${contextStr}\n\nConversation History:\n${history}\n\nASSISTANT:`;
     

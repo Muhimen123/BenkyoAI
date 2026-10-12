@@ -244,7 +244,7 @@ export const FEATURES: Feature[] = [
   { name: "BYOK onboarding with inline key validation", area: "Onboarding", status: "live", note: "Gemini, OpenAI, Anthropic, Ollama" },
   { name: "Adaptive roadmaps with prerequisite graph", area: "Roadmaps", status: "live", note: "Purpose, deadline and calibration aware" },
   { name: "Multiple roadmaps", area: "Roadmaps", status: "live", note: "Switch, add, delete" },
-  { name: "Material parsing: text, PDF, PPTX, YouTube", area: "Materials", status: "live", note: "Parsed in the browser where possible" },
+  { name: "Material parsing: text, PDF, PPTX, YouTube", area: "Materials", status: "live", note: "Files parsed in the browser; YouTube captions fetched by a keyless relay" },
   { name: "Hybrid retrieval (BM25 + embeddings, RRF)", area: "Materials", status: "live", note: "Cited passages in explanations and chat" },
   { name: "Depth-controlled explanations", area: "Learning", status: "live", note: "Brief, balanced, deep; re-explain on demand" },
   { name: "MCQ and short-answer practice with trap options", area: "Practice", status: "live", note: "Weak points blended inline" },
@@ -329,17 +329,16 @@ export const API: Endpoint[] = [
   { method: "POST", path: "/api/recall/answer", purpose: "Grade a recall answer", body: "{ questionId, subtopicId, optionId? | text?, prompt?, elapsedSec }", returns: "AnswerResult" },
   { method: "POST", path: "/api/session", purpose: "Write the end-of-session recap", body: "{ session, roadmap, answered[] }", returns: "SessionSummary" },
   { method: "POST", path: "/api/embed", purpose: "Embed chunks or a query", body: "{ texts[], task: document | query }", returns: "{ model, embeddings[][] }" },
-  { method: "POST", path: "/api/parse/youtube", purpose: "Fetch and summarise a YouTube transcript", body: "{ urlOrId, apiKey?, model? }", returns: "{ success, ... }" },
-  { method: "POST", path: "/api/test-gemini", purpose: "Developer connectivity check", body: "{ prompt?, apiKey?, model? }", returns: "{ success, response }" },
+  { method: "POST", path: "/api/parse/youtube", purpose: "Fetch a YouTube video's title and captions as timestamped sections (no AI, no key)", body: "{ url }", returns: "{ title, author, url, sections }" },
 ];
 
 export const API_AUTH =
-  "There are no user accounts. The study routes read the learner's key from the x-provider-key header (with x-provider and optional x-provider-model), relay one request to that provider, and keep nothing; a missing key is a 401. The key-check, model-list, YouTube and developer routes take the key in the request body instead. Token usage comes back in the x-benkyo-usage response header for the in-app cost meter.";
+  "There are no user accounts. The study routes read the learner's key from the x-provider-key header (with x-provider and optional x-provider-model), relay one request to that provider, and keep nothing; a missing key is a 401. The key-check and model-list routes take the key in the request body instead, and the YouTube route needs no key at all. Token usage comes back in the x-benkyo-usage response header for the in-app cost meter.";
 
 /* --------------------------------------------- engineering topic sections */
 
 export const DATA_LAYER: Topic[] = [
-  { title: "Sources", body: "Typed or pasted text, PDF (PDF.js), PowerPoint (PPTX slide XML), YouTube transcripts. Nothing is scraped from third-party sites." },
+  { title: "Sources", body: "Typed or pasted text, PDF (PDF.js), PowerPoint (PPTX slide XML), YouTube captions (the video's own published caption track, cited by timestamp). No other web content is fetched." },
   { title: "Processing", body: "Material is split into overlapping chunks in the browser; chunks get BM25 statistics and, when a key is present, 768-dimension embeddings." },
   { title: "Storage", body: "Study state in localStorage (Zustand persist), files in the Origin Private File System, the retrieval index in IndexedDB. All per-browser." },
   { title: "Privacy", body: "No accounts, no database, no analytics. Routes are stateless relays. The API key is never shown after entry and is excluded from vault exports." },

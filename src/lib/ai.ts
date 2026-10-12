@@ -50,10 +50,12 @@ export function recordUsage(model: string, meta?: UsageMetadataLike) {
 /**
  * Get an initialized GoogleGenAI client instance.
  * Accepts an optional dynamic apiKey (e.g. from client local storage),
- * falling back to process.env.GEMINI_API_KEY.
+ * falling back to process.env.GEMINI_API_KEY in development only, so a
+ * deployed relay never spends the operator's key on a keyless request.
  */
 export function getGeminiClient(apiKey?: string) {
-  const key = apiKey || process.env.GEMINI_API_KEY;
+  const devKey = process.env.NODE_ENV === 'development' ? process.env.GEMINI_API_KEY : undefined;
+  const key = apiKey || devKey;
   if (!key) {
     throw new Error('Gemini API key is missing. Please provide an API key or set GEMINI_API_KEY.');
   }

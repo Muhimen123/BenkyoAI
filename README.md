@@ -98,7 +98,7 @@ src/
 │   └── shell/               # App shell, header, wordmark
 ├── lib/
 │   ├── api/                 # Client-side API wrappers
-│   ├── parsers/             # PDF, PPTX, YouTube, text parsers
+│   ├── rag/                 # In-browser extraction, chunking, hybrid search, YouTube captions
 │   ├── types.ts             # Shared TypeScript types
 │   ├── vault.ts             # OPFS-based vault persistence
 │   └── utils.ts             # Utility functions
@@ -167,6 +167,6 @@ Study from Claude Desktop, Claude Code, Cursor or any MCP client. In the app, go
 }
 ```
 
-Tools: `list_roadmaps`, `get_roadmap`, `get_weak_points`, `get_due_reviews`, `get_session_history`, `get_study_plan`, `get_usage`. Prompts: `quiz_me`, `explain_back`. Read-only, stdio only. Try it with the bundled sample: `npm run mcp -- mcp/sample-vault.json`.
+Tools: `list_roadmaps`, `get_roadmap`, `get_weak_points`, `get_due_reviews`, `get_session_history`, `get_study_plan`, `get_usage`. Prompts: `quiz_me`, `explain_back`. Read-only, over stdio or Streamable HTTP on 127.0.0.1 (`--http [port]`, default 3333, endpoint `/mcp`). Try it with the bundled sample: `npm run mcp -- mcp/sample-vault.json` (add `--http` for a URL-based client).
 
 ---

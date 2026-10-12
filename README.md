@@ -146,6 +146,12 @@ This project uses [Next.js 16's built-in MCP](https://nextjs.org/docs) at `/_nex
 
 Full technical documentation lives at [`/docs`](https://benkyoai.vercel.app/docs).
 
+### `/docs` — pitch deck + technical docs
+
+`/docs` combines a pitch deck, team, feature matrix, architecture and API reference, with search and Markdown / PDF export. Its text lives in `src/lib/docs/content.ts`; entries tagged *to fill in* on the page are placeholders. Team photos go in `public/team/` and are referenced from the `photo` field.
+
+It is public by default. To schedule or hide it, set `DOCS_ENABLED`, `DOCS_START`, `DOCS_END` or `DOCS_DURATION_HOURS`, and set `DOCS_ADMIN_TOKEN` to manage visibility from `/docs/admin` (see `.env.example`).
+
 ## 🔌 BenkyoAI MCP server
 
 Study from Claude Desktop, Claude Code, Cursor or any MCP client. In the app, go to **Settings → Export my vault** (the file never contains your API key), then add:

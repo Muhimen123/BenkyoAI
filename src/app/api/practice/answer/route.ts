@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { generateJSON } from '@/lib/ai';
 import { withUsage } from '@/lib/usage';
 import { McqFeedbackSchema, ShortAnswerGradeSchema } from '@/lib/schemas';
-import { diagnosePractice, isCorrectOption, practiceOutcome } from '@/lib/diagnosis';
+import { correctOptionIdFor, diagnosePractice, isCorrectOption, practiceOutcome } from '@/lib/diagnosis';
 
 export const POST = withUsage(async (request: NextRequest) => {
   try {
@@ -13,6 +13,11 @@ export const POST = withUsage(async (request: NextRequest) => {
 
     const body = await request.json();
     const { questionId, subtopicId, optionId, text, elapsedSec } = body;
+    // Older clients don't send the question; fall back to the generic wording.
+    const question: string =
+      typeof body.prompt === 'string' && body.prompt.trim()
+        ? body.prompt.trim()
+        : 'In one or two sentences: when would you reach for this concept, and when would you not?';
 
     // We don't have the full roadmap in this request, but we can query Gemini.
     // We can infer the subtopic title or just pass subtopicId to help, but wait, the client doesn't send the subtopic title.
@@ -23,15 +28,13 @@ export const POST = withUsage(async (request: NextRequest) => {
     if (optionId) {
       // Multiple Choice Question
       const isCorrect = isCorrectOption(optionId);
-      const parts = optionId.split('_');
-      const correctSuffix = parts[1] || '';
-      const correctOptionId = `correct_${correctSuffix}`;
+      const correctOptionId = correctOptionIdFor(optionId);
 
       // Deterministic diagnosis; the model only writes the feedback.
       const mistakeType = diagnosePractice(optionId, elapsedSec);
 
       const prompt = `The student is studying a subtopic (ID: ${subtopicId}).
-They answered a multiple-choice question.
+They answered a multiple-choice question: "${question}"
 Result: ${isCorrect ? 'Correct' : `Incorrect. Mistake Category: ${mistakeType}`}
 Time taken: ${elapsedSec} seconds.
 
@@ -62,7 +65,7 @@ Respond ONLY with valid JSON.`;
       });
     } else {
       // Short Answer Question
-      const prompt = `The student was asked a short-answer application question: "In one or two sentences: when would you reach for this concept, and when would you not?"
+      const prompt = `The student was asked a short-answer application question: "${question}"
 Their written response is: "${text || ''}"
 Time taken: ${elapsedSec} seconds.
 

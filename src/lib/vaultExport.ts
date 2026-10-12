@@ -31,6 +31,9 @@ export function downloadVaultExport(state: StudyState) {
   const a = document.createElement("a");
   a.href = url;
   a.download = "benkyoai-vault.json";
+  document.body.appendChild(a);
   a.click();
-  URL.revokeObjectURL(url);
+  a.remove();
+  // Revoking in the same tick can cancel the download in some browsers.
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

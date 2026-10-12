@@ -142,6 +142,7 @@ export function RecallItemCard({
               subtopicId: item.sourceSubtopicId,
               optionId: item.kind === "mcq" ? selected : undefined,
               text: item.kind === "mcq" ? undefined : text,
+              prompt: item.prompt,
               elapsedSec: Math.round((Date.now() - started.current) / 1000),
             })
           }

@@ -17,6 +17,20 @@ export function isCorrectOption(optionId: string) {
   return optionId.startsWith("correct_");
 }
 
+/**
+ * The id of the correct option in the same question as `optionId`.
+ *
+ * Ids are `correct_<s>` and `trap_<s>_<t>` / `dist_<s>_<t>`, where `<s>` is
+ * shared by the whole question and `<s>`, `<t>` are ids of the same shape
+ * (`uid("opt")`, which itself contains an underscore). So the shared part is
+ * the first half of what follows the role prefix.
+ */
+export function correctOptionIdFor(optionId: string) {
+  if (isCorrectOption(optionId)) return optionId;
+  const parts = optionId.replace(/^(trap|dist)_/, "").split("_");
+  return `correct_${parts.slice(0, Math.max(1, parts.length / 2)).join("_")}`;
+}
+
 export function diagnosePractice(optionId: string, elapsedSec: number): MistakeType | undefined {
   if (isCorrectOption(optionId)) return undefined;
   if (elapsedSec < CARELESS_SECONDS) return "careless";

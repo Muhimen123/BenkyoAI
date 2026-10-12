@@ -499,8 +499,9 @@ export function dueReviews(roadmap: Roadmap | null) {
 }
 
 export function roadmapProgress(roadmap: Roadmap | null) {
-  if (!roadmap || !roadmap.topics.length) return { mastery: 0, done: 0, total: 0 };
-  const subs = roadmap.topics.flatMap((t) => t.subtopics);
+  const subs = roadmap?.topics.flatMap((t) => t.subtopics) ?? [];
+  // A topic can exist with no subtopics yet; don't divide by zero.
+  if (!subs.length) return { mastery: 0, done: 0, total: 0 };
   return {
     mastery: Math.round(subs.reduce((sum, s) => sum + s.mastery, 0) / subs.length),
     done: subs.filter((s) => s.status === "mastered").length,

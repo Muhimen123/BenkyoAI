@@ -45,6 +45,7 @@ export function QuestionCard({
       subtopicId: question.subtopicId,
       optionId: question.kind === "mcq" ? selected : undefined,
       text: question.kind === "mcq" ? undefined : text,
+      prompt: question.prompt,
       elapsedSec: Math.round((Date.now() - started.current) / 1000),
     });
   }

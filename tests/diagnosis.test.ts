@@ -31,3 +31,15 @@ test("outcomes: careless barely moves mastery, missing concept sends the learner
   assert.deepEqual(practiceOutcome("misunderstanding"), { understandingDelta: -7, suggestedAction: "review" });
   assert.deepEqual(practiceOutcome("missing-concept"), { understandingDelta: -7, suggestedAction: "go-deeper" });
 });
+
+test("the correct option is recovered from any option in the same question", async () => {
+  const { correctOptionIdFor } = await import("@/lib/diagnosis");
+  const { uid } = await import("@/lib/utils");
+  // Built exactly as /api/practice/set and /api/recall build them.
+  const shared = uid("opt");
+  const correct = `correct_${shared}`;
+  assert.equal(correctOptionIdFor(correct), correct);
+  assert.equal(correctOptionIdFor(`trap_${shared}_${uid("opt")}`), correct);
+  assert.equal(correctOptionIdFor(`dist_${shared}_${uid("opt")}`), correct);
+  assert.equal(correctOptionIdFor("dist_abc_1"), "correct_abc");
+});

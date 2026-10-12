@@ -197,6 +197,8 @@ export interface AnswerPayload {
   subtopicId: string;
   optionId?: string;
   text?: string;
+  /** The question as shown, so the grader judges the answer against it. */
+  prompt?: string;
   /** Seconds spent — feeds the careless-vs-misunderstanding call. */
   elapsedSec: number;
 }

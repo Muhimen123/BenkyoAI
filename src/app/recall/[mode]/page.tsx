@@ -7,7 +7,7 @@ import { ArrowLeft, Moon, X } from "lucide-react";
 import { AppShell } from "@/components/shell/AppShell";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { EmptyState, Eyebrow, Skeleton } from "@/components/ui/Feedback";
+import { EmptyState, ErrorNote, Eyebrow, Skeleton } from "@/components/ui/Feedback";
 import { RecallItemCard } from "@/components/recall/RecallItemCard";
 import { getRecallQueue, submitRecallAnswer } from "@/lib/api/recall";
 import { endSession } from "@/lib/api/session";
@@ -69,6 +69,8 @@ export default function RecallPage() {
     { subtopicId: string; correct: boolean; mistakeType?: MistakeType; wasWeakPoint?: boolean }[]
   >([]);
   const [ending, setEnding] = useState(false);
+  const [queueFailed, setQueueFailed] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // Exam night dims the whole app for as long as it's running.
   useEffect(() => {
@@ -83,14 +85,21 @@ export default function RecallPage() {
       (mode === "session-wise" ? sessions[0]?.id ?? "all" : "all");
     const session = startSession({ mode: "recall", topicTitle: FRAMING[mode].title });
     setSessionId(session.id);
+    setQueueFailed(false);
     getRecallQueue({ mode, scope, roadmap })
       .then(setQueue)
-      .catch(() => setQueue({ mode, scopeLabel: "", items: [], vaultCoverage: { covered: 0, total: 0 } }));
+      .catch(() => {
+        setQueueFailed(true);
+        setQueue({ mode, scopeLabel: "", items: [], vaultCoverage: { covered: 0, total: 0 } });
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roadmap?.id, mode]);
 
   async function handleSubmit(payload: AnswerPayload) {
     setSubmitting(true);
+    setActionError(null);
+    // Only items that came back from an earlier mistake were weak points.
+    const wasWeakPoint = queue?.items[index]?.reason === "previous-mistake";
     try {
       const outcome = await submitRecallAnswer(payload);
       setResult(outcome);
@@ -105,22 +114,25 @@ export default function RecallPage() {
           subtopicId: payload.subtopicId,
           correct: outcome.correct,
           mistakeType: outcome.mistakeType,
-          wasWeakPoint: true,
+          wasWeakPoint,
         },
       ]);
+    } catch {
+      setActionError("Your answer couldn't be checked. Nothing was recorded — try again.");
     } finally {
       setSubmitting(false);
     }
   }
 
   async function next() {
-    setResult(null);
     if (!queue) return;
     if (index < queue.items.length - 1) {
+      setResult(null);
       setIndex((i) => i + 1);
       return;
     }
     setEnding(true);
+    setActionError(null);
     try {
       const session = sessions.find((s) => s.id === sessionId);
       if (session && roadmap) {
@@ -133,6 +145,7 @@ export default function RecallPage() {
       router.push("/dashboard");
     } catch {
       setEnding(false);
+      setActionError("The recap couldn't be written. Press next to try again.");
     }
   }
 
@@ -205,6 +218,19 @@ export default function RecallPage() {
           <Skeleton className="h-12 w-full" />
           <Skeleton className="h-12 w-full" />
         </Card>
+      ) : queueFailed ? (
+        <ErrorNote
+          action={
+            <Link href="/dashboard">
+              <Button size="sm" variant="secondary">
+                Back to today
+              </Button>
+            </Link>
+          }
+        >
+          The recall questions didn&apos;t come back. Check your key in Settings, then
+          open recall again.
+        </ErrorNote>
       ) : queue.items.length === 0 ? (
         <EmptyState
           title="Nothing to recall yet"
@@ -223,7 +249,8 @@ export default function RecallPage() {
           <p className="text-sm text-ink-soft">Putting your recap together…</p>
         </Card>
       ) : (
-        <Card className="max-w-2xl">
+        <Card className="max-w-2xl space-y-4">
+          {actionError && <ErrorNote>{actionError}</ErrorNote>}
           <RecallItemCard
             item={item}
             index={index}

@@ -3,7 +3,7 @@ import { generateJSON } from '@/lib/ai';
 import { withUsage } from '@/lib/usage';
 import { RecallFeedbackSchema, RecallShortGradeSchema } from '@/lib/schemas';
 import type { NextAction } from '@/lib/types';
-import { diagnoseRecall, isCorrectOption } from '@/lib/diagnosis';
+import { correctOptionIdFor, diagnoseRecall, isCorrectOption } from '@/lib/diagnosis';
 
 export const POST = withUsage(async (request: NextRequest) => {
   try {
@@ -14,18 +14,21 @@ export const POST = withUsage(async (request: NextRequest) => {
 
     const body = await request.json();
     const { questionId, subtopicId, optionId, text, elapsedSec } = body;
+    // Older clients don't send the question; fall back to the generic wording.
+    const question: string =
+      typeof body.prompt === 'string' && body.prompt.trim()
+        ? body.prompt.trim()
+        : 'Without looking: what does this concept let you do, and when does it stop working?';
 
     if (optionId) {
       // Multiple Choice Question
       const isCorrect = isCorrectOption(optionId);
-      const parts = optionId.split('_');
-      const correctSuffix = parts[1] || '';
-      const correctOptionId = `correct_${correctSuffix}`;
+      const correctOptionId = correctOptionIdFor(optionId);
 
       const mistakeType = diagnoseRecall(optionId, elapsedSec);
 
       const prompt = `The student is doing active recall for a subtopic (ID: ${subtopicId}).
-They answered a multiple-choice question.
+They answered a multiple-choice question: "${question}"
 Result: ${isCorrect ? 'Correct' : `Incorrect. Mistake Category: ${mistakeType}`}
 Time taken: ${elapsedSec} seconds.
 
@@ -52,7 +55,7 @@ Respond ONLY with valid JSON.`;
       });
     } else {
       // Short Answer Question
-      const prompt = `The student was asked an active recall question: "Without looking: what does this concept let you do, and when does it stop working?"
+      const prompt = `The student was asked an active recall question: "${question}"
 Their written response is: "${text || ''}"
 Time taken: ${elapsedSec} seconds.
 

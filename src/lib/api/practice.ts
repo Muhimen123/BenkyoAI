@@ -58,6 +58,8 @@ export async function getExplanation(payload: {
   title: string;
   stub: string;
   depth: "brief" | "balanced" | "deep";
+  /** Passages retrieved from the learner's own material. */
+  sources?: { tag: string; label: string; text: string }[];
 }): Promise<string[]> {
   return request<typeof payload, string[]>("/api/chat", payload);
 }

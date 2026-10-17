@@ -21,6 +21,7 @@ import {
 } from "@/components/onboarding/OnboardingLoaders";
 import { generateRoadmap } from "@/lib/api/roadmap";
 import { summarizeMaterial } from "@/lib/api/summarize";
+import { materialText } from "@/lib/rag";
 import { useStudyStore } from "@/store/useStudyStore";
 
 const STEPS = [
@@ -91,16 +92,21 @@ function OnboardingFlow() {
     setError(null);
     try {
       const materialIds = materials.map((m) => m.id);
+      // Summarise the learner's actual material first, so the roadmap is built
+      // around what's in it rather than around the topic name alone.
+      const text = materialIds.length ? await materialText(materialIds) : "";
+      const summary = text
+        ? await summarizeMaterial({ materialIds, topic: draft.topic, text })
+        : null;
       const created = await generateRoadmap({
         topic: draft.topic,
         materialIds,
+        materialKeyPoints: summary?.keyPoints,
         calibration: draft.calibration,
         purpose: draft.purpose,
         deadline: draft.deadline || undefined,
       });
-      if (materialIds.length) {
-        setSummary(await summarizeMaterial({ materialIds, topic: created.title }));
-      }
+      if (summary) setSummary(summary);
       setRoadmap(created);
       router.push("/dashboard");
     } catch {

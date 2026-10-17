@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { AudioLines, CheckCircle2, Mic, MicOff } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Field";
+import { ErrorNote } from "@/components/ui/Feedback";
 import { evaluateExplanation } from "@/lib/api/practice";
 import type { ExplanationEvaluation } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -27,6 +28,9 @@ export function ExplainBack({
   const [evaluation, setEvaluation] = useState<ExplanationEvaluation | null>(null);
   const recognitionRef = useRef<any>(null);
   const [voiceSupported, setVoiceSupported] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  /** Whether any of the answer was dictated, for the evaluator's `source`. */
+  const spoke = useRef(false);
 
   useEffect(() => {
     const SR =
@@ -38,9 +42,15 @@ export function ExplainBack({
     recognition.continuous = true;
     recognition.interimResults = false;
     recognition.onresult = (event: any) => {
+      // In continuous mode `results` holds everything said since start();
+      // only the entries from `resultIndex` on are new.
       const transcript = Array.from(event.results)
-        .map((r: any) => r[0].transcript)
+        .slice(event.resultIndex)
+        .map((r: any) => r[0].transcript.trim())
+        .filter(Boolean)
         .join(" ");
+      if (!transcript) return;
+      spoke.current = true;
       setText((current) => (current ? `${current} ${transcript}` : transcript));
     };
     recognition.onend = () => setListening(false);
@@ -62,13 +72,16 @@ export function ExplainBack({
 
   async function submit() {
     setBusy(true);
+    setError(null);
     try {
       const outcome = await evaluateExplanation({
         subtopicId,
         text,
-        source: listening ? "spoken" : "typed",
+        source: spoke.current ? "spoken" : "typed",
       });
       setEvaluation(outcome);
+    } catch {
+      setError("Your explanation couldn't be checked. It's still here — try again.");
     } finally {
       setBusy(false);
     }
@@ -122,6 +135,7 @@ export function ExplainBack({
               </span>
             </div>
           </div>
+          {error && <ErrorNote>{error}</ErrorNote>}
           <Button size="lg" onClick={submit} loading={busy} disabled={!text.trim()} full>
             Check my explanation
           </Button>
@@ -172,6 +186,7 @@ export function ExplainBack({
                 onClick={() => {
                   setEvaluation(null);
                   setText("");
+                  spoke.current = false;
                 }}
               >
                 Try again

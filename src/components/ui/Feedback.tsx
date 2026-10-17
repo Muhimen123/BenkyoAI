@@ -51,3 +51,27 @@ export function Eyebrow({
     <p className={cn("label-data text-ink-faint", className)}>{children}</p>
   );
 }
+
+/** A failed request, said plainly, with an optional way to try again. */
+export function ErrorNote({
+  children,
+  action,
+  className,
+}: {
+  children: ReactNode;
+  action?: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      role="alert"
+      className={cn(
+        "flex flex-wrap items-center justify-between gap-3 rounded-lg border border-clay-100 bg-clay-50 px-4 py-3 text-[13px] text-clay-700",
+        className,
+      )}
+    >
+      <p>{children}</p>
+      {action}
+    </div>
+  );
+}

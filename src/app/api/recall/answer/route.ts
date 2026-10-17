@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateGeminiResponse } from '@/lib/ai';
-import type { MistakeType, NextAction } from '@/lib/types';
+import { generateJSON } from '@/lib/ai';
+import { withUsage } from '@/lib/usage';
+import { RecallFeedbackSchema, RecallShortGradeSchema } from '@/lib/schemas';
+import type { NextAction } from '@/lib/types';
+import { correctOptionIdFor, diagnoseRecall, isCorrectOption } from '@/lib/diagnosis';
 
-export async function POST(request: NextRequest) {
+export const POST = withUsage(async (request: NextRequest) => {
   try {
     const apiKey = request.headers.get('x-provider-key');
     if (!apiKey) {
@@ -11,20 +14,21 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { questionId, subtopicId, optionId, text, elapsedSec } = body;
+    // Older clients don't send the question; fall back to the generic wording.
+    const question: string =
+      typeof body.prompt === 'string' && body.prompt.trim()
+        ? body.prompt.trim()
+        : 'Without looking: what does this concept let you do, and when does it stop working?';
 
     if (optionId) {
       // Multiple Choice Question
-      const isCorrect = optionId.startsWith('correct_');
-      const parts = optionId.split('_');
-      const correctSuffix = parts[1] || '';
-      const correctOptionId = `correct_${correctSuffix}`;
+      const isCorrect = isCorrectOption(optionId);
+      const correctOptionId = correctOptionIdFor(optionId);
 
-      const mistakeType: MistakeType | undefined = isCorrect
-        ? undefined
-        : (elapsedSec < 6 ? 'careless' : 'misunderstanding');
+      const mistakeType = diagnoseRecall(optionId, elapsedSec);
 
       const prompt = `The student is doing active recall for a subtopic (ID: ${subtopicId}).
-They answered a multiple-choice question.
+They answered a multiple-choice question: "${question}"
 Result: ${isCorrect ? 'Correct' : `Incorrect. Mistake Category: ${mistakeType}`}
 Time taken: ${elapsedSec} seconds.
 
@@ -35,9 +39,7 @@ Return a JSON object:
 }
 Respond ONLY with valid JSON.`;
 
-      const responseText = await generateGeminiResponse(prompt, apiKey);
-      const jsonString = responseText.replace(/```json\n?|```/g, '').trim();
-      const parsed = JSON.parse(jsonString);
+      const parsed = await generateJSON(prompt, RecallFeedbackSchema, apiKey);
 
       const understandingDelta = isCorrect ? 10 : -5;
       const suggestedAction: NextAction = isCorrect ? 'move-on' : 'review';
@@ -53,7 +55,7 @@ Respond ONLY with valid JSON.`;
       });
     } else {
       // Short Answer Question
-      const prompt = `The student was asked an active recall question: "Without looking: what does this concept let you do, and when does it stop working?"
+      const prompt = `The student was asked an active recall question: "${question}"
 Their written response is: "${text || ''}"
 Time taken: ${elapsedSec} seconds.
 
@@ -66,9 +68,7 @@ Return a JSON object:
 }
 Respond ONLY with valid JSON.`;
 
-      const responseText = await generateGeminiResponse(prompt, apiKey);
-      const jsonString = responseText.replace(/```json\n?|```/g, '').trim();
-      const parsed = JSON.parse(jsonString);
+      const parsed = await generateJSON(prompt, RecallShortGradeSchema, apiKey);
 
       const isCorrect = parsed.correct;
       const suggestedAction: NextAction = isCorrect ? 'move-on' : 'review';
@@ -86,4 +86,4 @@ Respond ONLY with valid JSON.`;
     console.error('Recall Answer API grading error:', error);
     return NextResponse.json({ message: error.message || 'Failed to submit recall answer' }, { status: 500 });
   }
-}
+});

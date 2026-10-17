@@ -1,12 +1,61 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, type GenerateContentConfig } from '@google/genai';
+import { z } from 'zod';
+import { callAdapter, type AdapterProvider } from './providerAdapters';
+
+// ---------------------------------------------------------------------------
+// Token usage
+//
+// Every Gemini response carries usageMetadata. `lib/usage.ts` (server only)
+// opens a per-request collector around each route; this module reports into
+// it through a global handle, because ai.ts is also bundled for the browser
+// and must not import Node APIs itself.
+// ---------------------------------------------------------------------------
+
+export interface UsageRecord {
+  provider: string;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+}
+
+/** Per-request state opened by `withUsage` in lib/usage.ts. */
+export interface RequestContext {
+  usage: UsageRecord[];
+  provider: string;
+  model?: string;
+}
+
+interface UsageMetadataLike {
+  promptTokenCount?: number;
+  candidatesTokenCount?: number;
+  thoughtsTokenCount?: number;
+}
+
+function currentContext(): RequestContext | undefined {
+  return (globalThis as { __benkyoContext?: { getStore(): RequestContext | undefined } }).__benkyoContext?.getStore();
+}
+
+export function recordUsage(model: string, meta?: UsageMetadataLike) {
+  const records = currentContext()?.usage;
+  if (!records || !meta) return;
+  records.push({
+    provider: 'google',
+    model,
+    inputTokens: meta.promptTokenCount ?? 0,
+    // Thinking tokens are billed as output.
+    outputTokens: (meta.candidatesTokenCount ?? 0) + (meta.thoughtsTokenCount ?? 0),
+  });
+}
 
 /**
  * Get an initialized GoogleGenAI client instance.
  * Accepts an optional dynamic apiKey (e.g. from client local storage),
- * falling back to process.env.GEMINI_API_KEY.
+ * falling back to process.env.GEMINI_API_KEY in development only, so a
+ * deployed relay never spends the operator's key on a keyless request.
  */
 export function getGeminiClient(apiKey?: string) {
-  const key = apiKey || process.env.GEMINI_API_KEY;
+  const devKey = process.env.NODE_ENV === 'development' ? process.env.GEMINI_API_KEY : undefined;
+  const key = apiKey || devKey;
   if (!key) {
     throw new Error('Gemini API key is missing. Please provide an API key or set GEMINI_API_KEY.');
   }
@@ -119,7 +168,8 @@ async function resolveWorkingModel(apiKey?: string): Promise<string> {
   // Step 3: Try each candidate until one actually works
   for (const candidate of candidates) {
     try {
-      await ai.models.generateContent({ model: candidate, contents: 'hi' });
+      const probe = await ai.models.generateContent({ model: candidate, contents: 'hi' });
+      recordUsage(candidate, probe.usageMetadata);
       console.log(`[ai] ✓ Working model found: ${candidate}`);
       modelCache.set(cacheKey, candidate);
       return candidate;
@@ -151,6 +201,7 @@ export async function generateGeminiResponse(
   prompt: string,
   apiKey?: string,
   model?: string,
+  config?: GenerateContentConfig,
 ): Promise<string> {
   const ai = getGeminiClient(apiKey);
   const cacheKey = apiKey ? apiKey.slice(-8) : '__env__';
@@ -158,7 +209,8 @@ export async function generateGeminiResponse(
   const firstModel = model ?? await resolveWorkingModel(apiKey);
 
   async function attempt(m: string): Promise<string> {
-    const response = await ai.models.generateContent({ model: m, contents: prompt });
+    const response = await ai.models.generateContent({ model: m, contents: prompt, config });
+    recordUsage(m, response.usageMetadata);
     if (!response.text) throw new Error('No response text returned from Gemini.');
     return response.text;
   }
@@ -173,6 +225,88 @@ export async function generateGeminiResponse(
     const fallback = await resolveWorkingModel(apiKey);
     return attempt(fallback);
   }
+}
+
+/**
+ * Generate a structured response that matches `schema`.
+ *
+ * The schema is sent to Gemini as JSON Schema so the model is constrained at
+ * generation time (no markdown fences, no prose), then the reply is validated
+ * with Zod. A reply that doesn't match throws instead of reaching the UI.
+ */
+export async function generateGeminiJSON<T extends z.ZodType>(
+  prompt: string,
+  schema: T,
+  apiKey?: string,
+  model?: string,
+): Promise<z.infer<T>> {
+  // `$schema` is not among the keywords Gemini supports, so strip it before sending.
+  const responseJsonSchema: Record<string, unknown> = z.toJSONSchema(schema);
+  delete responseJsonSchema.$schema;
+  const text = await generateGeminiResponse(prompt, apiKey, model, {
+    responseMimeType: 'application/json',
+    responseJsonSchema,
+  });
+  return schema.parse(JSON.parse(text));
+}
+
+// ---------------------------------------------------------------------------
+// Provider dispatch
+//
+// Routes call generateText / generateJSON. Gemini stays the default path (with
+// model discovery and fallback); a request whose x-provider header names
+// OpenAI, Anthropic or a local Ollama server goes to that provider instead.
+// ---------------------------------------------------------------------------
+
+function adapterFor(ctx?: RequestContext): AdapterProvider | null {
+  const p = ctx?.provider;
+  return p === 'openai' || p === 'anthropic' || p === 'ollama' ? p : null;
+}
+
+async function viaAdapter(
+  provider: AdapterProvider,
+  ctx: RequestContext,
+  credential: string,
+  prompt: string,
+  schema?: Record<string, unknown>,
+) {
+  const result = await callAdapter(provider, credential, ctx.model, prompt, schema);
+  ctx.usage.push({
+    provider,
+    model: result.model,
+    inputTokens: result.inputTokens,
+    outputTokens: result.outputTokens,
+  });
+  if (!result.text) throw new Error('No response text returned from the provider.');
+  return result.text;
+}
+
+export async function generateText(prompt: string, apiKey?: string): Promise<string> {
+  const ctx = currentContext();
+  const provider = adapterFor(ctx);
+  if (provider && ctx && apiKey) return viaAdapter(provider, ctx, apiKey, prompt);
+  return generateGeminiResponse(prompt, apiKey);
+}
+
+export async function generateJSON<T extends z.ZodType>(
+  prompt: string,
+  schema: T,
+  apiKey?: string,
+): Promise<z.infer<T>> {
+  const ctx = currentContext();
+  const provider = adapterFor(ctx);
+  if (!provider || !ctx || !apiKey) return generateGeminiJSON(prompt, schema, apiKey);
+
+  // OpenAI, Anthropic tool inputs and Ollama all want an object at the root,
+  // so array-shaped contracts travel wrapped as { result: [...] }.
+  const jsonSchema: Record<string, unknown> = z.toJSONSchema(schema);
+  delete jsonSchema.$schema;
+  const wrapped = jsonSchema.type !== 'object';
+  const sent = wrapped
+    ? { type: 'object', properties: { result: jsonSchema }, required: ['result'] }
+    : jsonSchema;
+  const parsed = JSON.parse(await viaAdapter(provider, ctx, apiKey, prompt, sent));
+  return schema.parse(wrapped ? parsed.result : parsed);
 }
 
 /**

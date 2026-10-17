@@ -1,14 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateGeminiResponse } from '@/lib/ai';
-import { CHAT_SYSTEM_PROMPT } from '@/lib/prompts';
+import { generateJSON, generateText } from '@/lib/ai';
+import { withUsage } from '@/lib/usage';
+import { ExplanationParagraphsSchema, SourcesSchema } from '@/lib/schemas';
+import { CHAT_SYSTEM_PROMPT, chatHistory, citedTags, sourcesBlock } from '@/lib/prompts';
 import { uid } from '@/lib/utils';
 import type { ChatMessage } from '@/lib/types';
+
+/** Appends the material a chat reply cited, so the learner can check it. */
+function withCitations(text: string, sources?: { tag: string; label: string }[]) {
+  const cited = citedTags(text)
+    .map((tag) => sources?.find((s) => s.tag === tag))
+    .filter((s): s is { tag: string; label: string } => Boolean(s));
+  if (!cited.length) return text;
+  return `${text}\n\nFrom your material: ${cited.map((s) => `[${s.tag}] ${s.label}`).join('; ')}`;
+}
 
 function cleanMarkdown(text: string): string {
   return text.replace(/\*\*/g, '').replace(/\*/g, '').trim();
 }
 
-export async function POST(request: NextRequest) {
+export const POST = withUsage(async (request: NextRequest) => {
   try {
     const apiKey = request.headers.get('x-provider-key');
     if (!apiKey) {
@@ -16,6 +27,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+    const sources = SourcesSchema.parse(body.sources);
 
     // 1. Check if it's getExplanation (depth is present)
     if (body.depth) {
@@ -27,11 +39,9 @@ Explain this subtopic in detail at the chosen depth: "${depth}".
 - balanced: 2-3 paragraphs, including a brief walkthrough or worked example of the concept.
 - deep: 3-4 paragraphs, explaining underlying mechanics, first principles, and connections to other concepts.
 
-Your output MUST be a JSON array of paragraphs (strings). Do NOT wrap the JSON in markdown formatting blocks, or if you do, output only valid JSON: e.g. ["paragraph 1", "paragraph 2", ...]. Ensure the strings are properly escaped.`;
+Your output MUST be a JSON array of paragraphs (strings). Do NOT wrap the JSON in markdown formatting blocks, or if you do, output only valid JSON: e.g. ["paragraph 1", "paragraph 2", ...]. Ensure the strings are properly escaped.${sourcesBlock(sources)}`;
       
-      const responseText = await generateGeminiResponse(prompt, apiKey);
-      const jsonString = responseText.replace(/```json\n?|```/g, '').trim();
-      const parsed = JSON.parse(jsonString);
+      const parsed = await generateJSON(prompt, ExplanationParagraphsSchema, apiKey);
       const cleaned = Array.isArray(parsed)
         ? parsed.map((p: string) => cleanMarkdown(p))
         : parsed;
@@ -49,7 +59,7 @@ The explanation focus/style must be: "${mode}".
 
 Respond with a single string containing only the explanation paragraph.`;
 
-      const responseText = await generateGeminiResponse(prompt, apiKey);
+      const responseText = await generateText(prompt, apiKey);
       return NextResponse.json(cleanMarkdown(responseText));
     }
 
@@ -65,20 +75,20 @@ Respond with a single string containing only the explanation paragraph.`;
       contextStr += `\nCurrent Subtopic: ${context.subtopicTitle}`;
     }
 
-    // Format the conversation history
-    const history = messages.map((m: any) => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n');
+    // Format the recent conversation history (sliding window)
+    const history = chatHistory(messages);
 
     const userPrompt = `Context:\n${contextStr}\n\nConversation History:\n${history}\n\nASSISTANT:`;
     
     // We expect standard text output for chat.
-    const combinedPrompt = `${CHAT_SYSTEM_PROMPT}\n\n${userPrompt}`;
+    const combinedPrompt = `${CHAT_SYSTEM_PROMPT}${sourcesBlock(sources)}\n\n${userPrompt}`;
 
-    const responseText = await generateGeminiResponse(combinedPrompt, apiKey);
+    const responseText = await generateText(combinedPrompt, apiKey);
     
     const chatMessage: ChatMessage = {
       id: uid("msg"),
       role: 'assistant',
-      content: cleanMarkdown(responseText),
+      content: withCitations(cleanMarkdown(responseText), sources),
       createdAt: new Date().toISOString(),
     };
 
@@ -87,4 +97,4 @@ Respond with a single string containing only the explanation paragraph.`;
     console.error('Chat API error:', error);
     return NextResponse.json({ message: error.message || 'Failed to chat' }, { status: 500 });
   }
-}
+});

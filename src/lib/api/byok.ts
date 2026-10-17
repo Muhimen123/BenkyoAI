@@ -8,6 +8,7 @@ import type { KeyValidationResult, ProviderId } from "@/lib/types";
 export interface ValidateKeyPayload {
   provider: ProviderId;
   apiKey: string;
+  model?: string;
 }
 
 export async function validateApiKey(

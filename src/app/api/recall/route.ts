@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateGeminiResponse } from '@/lib/ai';
+import { generateJSON } from '@/lib/ai';
+import { withUsage } from '@/lib/usage';
+import { RecallSetSchema } from '@/lib/schemas';
 import { RECALL_SYSTEM_PROMPT } from '@/lib/prompts';
 import { uid } from '@/lib/utils';
+import { isDue } from '@/lib/srs';
 import type { RecallItem, RecallMode } from '@/lib/types';
 
 const REASON_ORDER = ["previous-mistake", "unresolved", "spaced-review"] as const;
 
-export async function POST(request: NextRequest) {
+/** Never-reviewed subtopics sort after scheduled ones. */
+function dueTime(sub: { review?: { due: string } }) {
+  return sub.review ? new Date(sub.review.due).getTime() : Number.MAX_SAFE_INTEGER;
+}
+
+export const POST = withUsage(async (request: NextRequest) => {
   try {
     const apiKey = request.headers.get('x-provider-key');
     if (!apiKey) {
@@ -32,7 +40,7 @@ export async function POST(request: NextRequest) {
       scopeLabel = `Up to ${roadmap.topics[Math.max(0, cutoff - 1)]?.title ?? "your first milestone"}`;
     } else if (mode === "session-wise") {
       selected = touched
-        .filter((p: any) => p.sub.isWeakPoint || p.sub.status === "in-progress")
+        .filter((p: any) => p.sub.isWeakPoint || p.sub.status === "in-progress" || isDue(p.sub))
         .slice(0, 6);
       scopeLabel = "Your last session, plus what was left unresolved";
     }
@@ -40,7 +48,11 @@ export async function POST(request: NextRequest) {
     const ordered = [...selected].sort((a, b) => {
       const rA = a.sub.isWeakPoint ? "previous-mistake" : a.sub.status === "in-progress" ? "unresolved" : "spaced-review";
       const rB = b.sub.isWeakPoint ? "previous-mistake" : b.sub.status === "in-progress" ? "unresolved" : "spaced-review";
-      return REASON_ORDER.indexOf(rA) - REASON_ORDER.indexOf(rB);
+      // Within a reason, whatever FSRS says is most overdue comes first.
+      return (
+        REASON_ORDER.indexOf(rA) - REASON_ORDER.indexOf(rB) ||
+        dueTime(a.sub) - dueTime(b.sub)
+      );
     });
 
     const limit = mode === "exam-night" ? 12 : 6;
@@ -66,9 +78,7 @@ Subtopics to recall: ${JSON.stringify(
     )}`;
 
     const combinedPrompt = `${RECALL_SYSTEM_PROMPT}\n\n${userPrompt}`;
-    const responseText = await generateGeminiResponse(combinedPrompt, apiKey);
-    const jsonString = responseText.replace(/```json\n?|```/g, '').trim();
-    const parsed = JSON.parse(jsonString);
+    const parsed = await generateJSON(combinedPrompt, RecallSetSchema, apiKey);
 
     const questionsMap = new Map<string, any>(
       (parsed.questions || []).map((q: any) => [q.subtopicId, q])
@@ -135,4 +145,4 @@ Subtopics to recall: ${JSON.stringify(
     console.error('Active Recall Queue API error:', error);
     return NextResponse.json({ message: error.message || 'Failed to generate recall queue' }, { status: 500 });
   }
-}
+});

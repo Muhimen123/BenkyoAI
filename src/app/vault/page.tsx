@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { EmptyState, Eyebrow, Skeleton } from "@/components/ui/Feedback";
 import { RoadmapView } from "@/components/RoadmapView";
+import { ConceptMap } from "@/components/ConceptMap";
 import { RoadmapControls } from "@/components/RoadmapControls";
 import { MaterialInput } from "@/components/MaterialInput";
 import { SummaryCard } from "@/components/SummaryCard";
@@ -23,7 +24,7 @@ import {
 import { formatDate, relativeTime } from "@/lib/utils";
 import type { Session } from "@/lib/types";
 
-type Tab = "roadmap" | "materials" | "sessions";
+type Tab = "roadmap" | "map" | "materials" | "sessions";
 
 export default function VaultPage() {
   const hydrated = useStudyStore((s) => s.hydrated);
@@ -68,6 +69,7 @@ export default function VaultPage() {
         onChange={setTab}
         options={[
           { value: "roadmap", label: "Roadmap" },
+          { value: "map", label: "Concept map" },
           { value: "materials", label: `Materials (${materials.length})` },
           { value: "sessions", label: `Sessions (${sessions.length})` },
         ]}
@@ -135,6 +137,12 @@ export default function VaultPage() {
             <RoadmapControls roadmap={roadmap} />
           </div>
           <RoadmapView roadmap={roadmap} />
+        </div>
+      )}
+
+      {tab === "map" && (
+        <div className="animate-fade">
+          <ConceptMap roadmap={roadmap} />
         </div>
       )}
 

@@ -1054,3 +1054,9 @@
     scroll-behavior: auto !important;
   }
 }
+/* /docs → "PDF" prints the content only: nav, search and admin chrome drop out. */
+@media print {
+  .docs-chrome {
+    display: none !important;
+  }
+}

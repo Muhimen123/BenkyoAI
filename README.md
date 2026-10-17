@@ -98,7 +98,7 @@ src/
 │   └── shell/               # App shell, header, wordmark
 ├── lib/
 │   ├── api/                 # Client-side API wrappers
-│   ├── parsers/             # PDF, PPTX, YouTube, text parsers
+│   ├── rag/                 # In-browser extraction, chunking, hybrid search, YouTube captions
 │   ├── types.ts             # Shared TypeScript types
 │   ├── vault.ts             # OPFS-based vault persistence
 │   └── utils.ts             # Utility functions
@@ -139,8 +139,34 @@ npm run dev      # Start development server
 npm run build    # Production build
 npm start        # Start production server
 npm run lint     # Run ESLint
+npm test         # Unit tests (diagnosis, FSRS, retrieval, schemas, providers) + MCP end-to-end test
 ```
 
 This project uses [Next.js 16's built-in MCP](https://nextjs.org/docs) at `/_next/mcp` for runtime diagnostics during development.
+
+Full technical documentation lives at [`/docs`](https://benkyoai.vercel.app/docs).
+
+### `/docs` — pitch deck + technical docs
+
+`/docs` combines a pitch deck, team, feature matrix, architecture and API reference, with search and Markdown / PDF export. Its text lives in `src/lib/docs/content.ts`; entries tagged *to fill in* on the page are placeholders. Team photos go in `public/team/` and are referenced from the `photo` field.
+
+It is public by default. To schedule or hide it, set `DOCS_ENABLED`, `DOCS_START`, `DOCS_END` or `DOCS_DURATION_HOURS`, and set `DOCS_ADMIN_TOKEN` to manage visibility from `/docs/admin` (see `.env.example`).
+
+## 🔌 BenkyoAI MCP server
+
+Study from Claude Desktop, Claude Code, Cursor or any MCP client. In the app, go to **Settings → Export my vault** (the file never contains your API key), then add:
+
+```json
+{
+  "mcpServers": {
+    "benkyoai": {
+      "command": "node",
+      "args": ["/path/to/BenkyoAI/mcp/server.mjs", "/path/to/benkyoai-vault.json"]
+    }
+  }
+}
+```
+
+Tools: `list_roadmaps`, `get_roadmap`, `get_weak_points`, `get_due_reviews`, `get_session_history`, `get_study_plan`, `get_usage`. Prompts: `quiz_me`, `explain_back`. Read-only, over stdio or Streamable HTTP on 127.0.0.1 (`--http [port]`, default 3333, endpoint `/mcp`). Try it with the bundled sample: `npm run mcp -- mcp/sample-vault.json` (add `--http` for a URL-based client).
 
 ---

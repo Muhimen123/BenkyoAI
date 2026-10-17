@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateGeminiResponse } from '@/lib/ai';
+import { generateJSON } from '@/lib/ai';
+import { withUsage } from '@/lib/usage';
+import { PracticeSetSchema } from '@/lib/schemas';
 import { PRACTICE_SYSTEM_PROMPT } from '@/lib/prompts';
 import { uid } from '@/lib/utils';
 import type { Question } from '@/lib/types';
 
-export async function POST(request: NextRequest) {
+export const POST = withUsage(async (request: NextRequest) => {
   try {
     const apiKey = request.headers.get('x-provider-key');
     if (!apiKey) {
@@ -27,9 +29,7 @@ Eligible Weak Points to blend in: ${weakPointsText}`;
 
     const combinedPrompt = `${PRACTICE_SYSTEM_PROMPT}\n\n${userPrompt}`;
 
-    const responseText = await generateGeminiResponse(combinedPrompt, apiKey);
-    const jsonString = responseText.replace(/```json\n?|```/g, '').trim();
-    const parsed = JSON.parse(jsonString);
+    const parsed = await generateJSON(combinedPrompt, PracticeSetSchema, apiKey);
 
     const questions: Question[] = (parsed.questions || []).map((q: any) => {
       const questionId = uid("q");
@@ -78,4 +78,4 @@ Eligible Weak Points to blend in: ${weakPointsText}`;
     console.error('Practice Set API error:', error);
     return NextResponse.json({ message: error.message || 'Failed to generate practice set' }, { status: 500 });
   }
-}
+});

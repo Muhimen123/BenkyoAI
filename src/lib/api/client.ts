@@ -7,6 +7,37 @@
  * app-owned key anywhere in this path.
  */
 import { readCredentials } from "@/lib/byokVault";
+import { useStudyStore } from "@/store/useStudyStore";
+import type { UsageEntry } from "@/lib/types";
+
+/** Mirrors USAGE_HEADER in lib/usage.ts (server-only module). */
+const USAGE_HEADER = "x-benkyo-usage";
+
+function recordUsageFrom(res: Response, path: string, roadmapId?: string) {
+  const raw = res.headers.get(USAGE_HEADER);
+  if (!raw) return;
+  try {
+    const records = JSON.parse(raw) as Omit<UsageEntry, "at" | "roadmapId" | "path">[];
+    useStudyStore.getState().recordUsage(records.map((r) => ({ ...r, path })), roadmapId);
+  } catch {
+    // A malformed header only costs us one meter reading.
+  }
+}
+
+/**
+ * Whether a failed call means the provider rejected the key itself, as opposed
+ * to a busy model or a bad request. Routes relay provider errors as 500s, so
+ * the message is checked as well as the status.
+ */
+function keyRejected(status: number, message: string) {
+  return (
+    status === 401 ||
+    status === 403 ||
+    /api[_ ]?key[_ ]?(not valid|invalid)|incorrect api key|invalid x-api-key|provider error \((401|403)\)/i.test(
+      message,
+    )
+  );
+}
 
 export class MissingKeyError extends Error {
   constructor() {
@@ -35,14 +66,25 @@ export async function request<TBody, TRes>(
       "content-type": "application/json",
       "x-provider": credential.provider,
       "x-provider-key": credential.apiKey,
+      ...(credential.model && { "x-provider-model": credential.model }),
     },
     body: JSON.stringify(body),
   });
 
   if (!res.ok) {
+    recordUsageFrom(res, path);
     const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.message || `Request failed: ${res.statusText}`);
+    const message: string = errorData.message || `Request failed: ${res.statusText}`;
+    // Turns the header key indicator red, so "check your key" points somewhere.
+    if (credentials && keyRejected(res.status, message)) {
+      useStudyStore.getState().flagKeyInvalid();
+    }
+    throw new Error(message);
   }
 
-  return res.json();
+  const data = await res.json();
+  // A roadmap is created by this very call, so its cost belongs to it rather
+  // than to whichever roadmap was open before.
+  recordUsageFrom(res, path, path === "/api/roadmap" ? data?.id : undefined);
+  return data;
 }

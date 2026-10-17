@@ -15,7 +15,7 @@ import { AppShell, PageHead } from "@/components/shell/AppShell";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { EmptyState, Eyebrow, Skeleton } from "@/components/ui/Feedback";
+import { EmptyState, ErrorNote, Eyebrow, Skeleton } from "@/components/ui/Feedback";
 import { MasteryMeter } from "@/components/ui/MasteryMeter";
 import { DepthControl } from "@/components/DepthControl";
 import { ChatPanel } from "@/components/ChatPanel";
@@ -29,6 +29,8 @@ import {
   submitAnswer,
 } from "@/lib/api/practice";
 import { endSession } from "@/lib/api/session";
+import { retrieve, type Source } from "@/lib/rag";
+import { citedTags } from "@/lib/prompts";
 import { findSubtopic, useStudyStore, weakPoints } from "@/store/useStudyStore";
 import type {
   AnswerPayload,
@@ -57,6 +59,7 @@ export default function SubtopicPage() {
 
   const [phase, setPhase] = useState<Phase>("learn");
   const [paragraphs, setParagraphs] = useState<string[] | null>(null);
+  const [sources, setSources] = useState<Source[]>([]);
   const [extra, setExtra] = useState<string[]>([]);
   const [rewriting, setRewriting] = useState(false);
   const [set, setSet] = useState<PracticeSet | null>(null);
@@ -68,6 +71,10 @@ export default function SubtopicPage() {
   >([]);
   const [ending, setEnding] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  /** Practice set failed to load — shown in place of the endless skeleton. */
+  const [practiceError, setPracticeError] = useState<string | null>(null);
+  /** A single action (answer, re-explain, recap) failed. */
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const [sessionId, setSessionId] = useState<string | null>(null);
 
@@ -94,14 +101,22 @@ export default function SubtopicPage() {
     let alive = true;
     setParagraphs(null);
     setExtra([]);
-    getExplanation({
-      subtopicId: found.subtopic.id,
-      title: found.subtopic.title,
-      stub: found.subtopic.explanationStub,
-      depth,
-    })
-      .then((p) => alive && setParagraphs(p))
-      .catch(() => alive && setParagraphs([found.subtopic.explanationStub]));
+    setSources([]);
+    (async () => {
+      // Ground the explanation in the learner's own material when it has any.
+      const retrieved = await retrieve(`${found.subtopic.title}. ${found.subtopic.explanationStub}`);
+      const p = await getExplanation({
+        subtopicId: found.subtopic.id,
+        title: found.subtopic.title,
+        stub: found.subtopic.explanationStub,
+        depth,
+        sources: retrieved,
+      });
+      if (!alive) return;
+      const cited = new Set(citedTags(p.join(" ")));
+      setSources(retrieved.filter((s) => cited.has(s.tag)));
+      setParagraphs(p);
+    })().catch(() => alive && setParagraphs([found.subtopic.explanationStub]));
     return () => {
       alive = false;
     };
@@ -110,15 +125,20 @@ export default function SubtopicPage() {
 
   const loadPractice = useCallback(async () => {
     if (!found || set) return;
-    const loaded = await getPracticeSet({
-      subtopicId: found.subtopic.id,
-      context: {
-        title: found.subtopic.title,
-        topicTitle: found.topic.title,
-        weakPoints: weak.map((w) => ({ id: w.id, title: w.title })),
-      },
-    });
-    setSet(loaded);
+    setPracticeError(null);
+    try {
+      const loaded = await getPracticeSet({
+        subtopicId: found.subtopic.id,
+        context: {
+          title: found.subtopic.title,
+          topicTitle: found.topic.title,
+          weakPoints: weak.map((w) => ({ id: w.id, title: w.title })),
+        },
+      });
+      setSet(loaded);
+    } catch {
+      setPracticeError("The practice questions didn't come back. Check your key in Settings, then try again.");
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [found?.subtopic.id, set]);
 
@@ -126,7 +146,7 @@ export default function SubtopicPage() {
     if (phase === "practice") loadPractice();
   }, [phase, loadPractice]);
 
-  if (!hydrated) {
+  if (!hydrated || (found && roadmap && !sessionId)) {
     return (
       <AppShell>
         <Skeleton className="h-9 w-72" />
@@ -159,9 +179,12 @@ export default function SubtopicPage() {
 
   async function handleRewrite(mode: "differently" | "simpler" | "deeper") {
     setRewriting(true);
+    setActionError(null);
     try {
       const text = await reexplain(subtopic.id, subtopic.title, mode);
       setExtra((current) => [...current, text]);
+    } catch {
+      setActionError("That explanation didn't come back. Try again in a moment.");
     } finally {
       setRewriting(false);
     }
@@ -169,6 +192,7 @@ export default function SubtopicPage() {
 
   async function handleAnswer(payload: AnswerPayload) {
     setSubmitting(true);
+    setActionError(null);
     try {
       const outcome = await submitAnswer(payload);
       setResult(outcome);
@@ -190,6 +214,8 @@ export default function SubtopicPage() {
         lastQuestionIndex: index,
         progress: set ? Math.round(((index + 1) / set.questions.length) * 100) : 0,
       });
+    } catch {
+      setActionError("Your answer couldn't be checked. Nothing was recorded — try again.");
     } finally {
       setSubmitting(false);
     }
@@ -203,6 +229,7 @@ export default function SubtopicPage() {
 
   async function finish() {
     setEnding(true);
+    setActionError(null);
     try {
       const session = sessions.find((s) => s.id === sessionId)!;
       const summary = await endSession({ session, roadmap: roadmap!, answered });
@@ -210,6 +237,7 @@ export default function SubtopicPage() {
       router.push(`/session/${summary.sessionId}`);
     } catch {
       setEnding(false);
+      setActionError("The recap couldn't be written. Try ending the session again.");
     }
   }
 
@@ -241,6 +269,7 @@ export default function SubtopicPage() {
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-10">
         <div className="min-w-0 space-y-6">
+          {actionError && <ErrorNote>{actionError}</ErrorNote>}
           {subtopic.isWeakPoint && (
             <p className="flex items-center gap-2 rounded-lg border border-maize-100 bg-maize-50 px-3.5 py-2.5 text-[13px] text-maize-700">
               <Sparkles className="size-3.5 shrink-0" />
@@ -272,6 +301,18 @@ export default function SubtopicPage() {
                         {paragraph}
                       </p>
                     ))}
+                    {sources.length > 0 && (
+                      <div className="rounded-lg border border-line bg-sunk px-3.5 py-3">
+                        <Eyebrow>From your material</Eyebrow>
+                        <ul className="mt-2 space-y-1.5 text-[13px] leading-snug text-ink-soft">
+                          {sources.map((s) => (
+                            <li key={s.tag}>
+                              <span className="font-medium text-ink">[{s.tag}]</span> {s.label}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -317,7 +358,17 @@ export default function SubtopicPage() {
 
           {phase === "practice" && (
             <Card>
-              {!set || !question ? (
+              {practiceError && !set ? (
+                <ErrorNote
+                  action={
+                    <Button size="sm" variant="secondary" onClick={() => loadPractice()}>
+                      Try again
+                    </Button>
+                  }
+                >
+                  {practiceError}
+                </ErrorNote>
+              ) : !set || !question ? (
                 <div className="space-y-4">
                   <Skeleton className="h-4 w-24" />
                   <Skeleton className="h-6 w-3/4" />
@@ -351,6 +402,7 @@ export default function SubtopicPage() {
               ) : (
                 <div className="space-y-5">
                   <QuestionCard
+                    key={question.id}
                     question={question}
                     index={index}
                     total={set.questions.length}

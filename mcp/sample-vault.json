@@ -1,0 +1,74 @@
+{
+  "app": "benkyoai",
+  "exportedAt": "2026-10-09T12:00:00.000Z",
+  "state": {
+    "roadmap": { "id": "rm_py" },
+    "roadmaps": [
+      {
+        "id": "rm_py",
+        "title": "Python Fundamentals",
+        "purpose": "exam",
+        "deadline": "2026-11-01",
+        "createdAt": "2026-10-01T09:00:00.000Z",
+        "updatedAt": "2026-10-08T18:00:00.000Z",
+        "pacing": { "sessionsPerWeek": 5, "minutesPerSession": 35, "note": "Tight cycles, heavy recall." },
+        "lastAdjustment": {
+          "at": "2026-10-08T18:00:00.000Z",
+          "reason": "A missing foundation showed up in conditionals, so boolean expressions was folded back in for review.",
+          "affectedSubtopicIds": ["st_cond", "st_bool"]
+        },
+        "topics": [
+          {
+            "id": "tp_basics", "roadmapId": "rm_py", "title": "Core Building Blocks", "summary": "Values, types and expressions.",
+            "order": 0, "status": "in-progress", "mastery": 61, "isMilestone": false, "origin": "ai",
+            "subtopics": [
+              {
+                "id": "st_vars", "topicId": "tp_basics", "title": "Variables and Types", "explanationStub": "A name points at a value; the value carries the type.",
+                "mastery": 88, "status": "mastered", "isWeakPoint": false, "estimatedMin": 15, "sessionIds": ["ses_1"],
+                "review": { "due": "2026-10-20T09:00:00.000Z", "stability": 9.1, "difficulty": 4.2, "elapsed_days": 0, "scheduled_days": 12, "learning_steps": 0, "reps": 3, "lapses": 0, "state": 2, "last_review": "2026-10-08T09:00:00.000Z" }
+              },
+              {
+                "id": "st_bool", "topicId": "tp_basics", "title": "Boolean Expressions", "explanationStub": "and/or short-circuit and return an operand, not always True/False.",
+                "mastery": 34, "status": "in-progress", "isWeakPoint": true, "estimatedMin": 20, "sessionIds": ["ses_1"], "prerequisiteIds": ["st_vars"],
+                "review": { "due": "2026-10-08T18:10:00.000Z", "stability": 0.4, "difficulty": 7.8, "elapsed_days": 0, "scheduled_days": 0, "learning_steps": 0, "reps": 3, "lapses": 1, "state": 3, "last_review": "2026-10-08T18:00:00.000Z" }
+              }
+            ]
+          },
+          {
+            "id": "tp_flow", "roadmapId": "rm_py", "title": "Control Flow", "summary": "Making decisions and repeating work.",
+            "order": 1, "status": "in-progress", "mastery": 20, "isMilestone": true, "origin": "ai",
+            "subtopics": [
+              {
+                "id": "st_cond", "topicId": "tp_flow", "title": "Conditionals", "explanationStub": "if/elif/else picks the first branch whose test is truthy.",
+                "mastery": 40, "status": "in-progress", "isWeakPoint": true, "estimatedMin": 20, "sessionIds": ["ses_1"], "prerequisiteIds": ["st_bool"],
+                "review": { "due": "2026-10-09T08:00:00.000Z", "stability": 1.2, "difficulty": 6.5, "elapsed_days": 0, "scheduled_days": 1, "learning_steps": 0, "reps": 2, "lapses": 1, "state": 3, "last_review": "2026-10-08T18:00:00.000Z" }
+              },
+              {
+                "id": "st_loops", "topicId": "tp_flow", "title": "Loops", "explanationStub": "for walks an iterable; while repeats until its test is falsy.",
+                "mastery": 0, "status": "not-started", "isWeakPoint": false, "estimatedMin": 25, "sessionIds": [], "prerequisiteIds": ["st_cond"]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "sessions": [
+      { "id": "ses_1", "roadmapId": "rm_py", "mode": "practice", "startedAt": "2026-10-08T17:30:00.000Z", "endedAt": "2026-10-08T18:05:00.000Z", "progress": 100, "lastQuestionIndex": 3 }
+    ],
+    "summaries": [
+      {
+        "sessionId": "ses_1", "roadmapId": "rm_py", "startedAt": "2026-10-08T17:30:00.000Z", "endedAt": "2026-10-08T18:05:00.000Z", "durationMin": 35,
+        "covered": [{ "subtopicId": "st_vars", "title": "Variables and Types" }, { "subtopicId": "st_cond", "title": "Conditionals" }],
+        "struggled": [{ "subtopicId": "st_cond", "title": "Conditionals", "mistakeType": "missing-concept" }],
+        "understood": [{ "subtopicId": "st_vars", "title": "Variables and Types", "mastery": 88 }],
+        "growth": [],
+        "nextUp": { "subtopicId": "st_bool", "title": "Boolean Expressions", "reason": "Conditionals lean on truthiness, which is where the slip came from." },
+        "carryOver": { "subtopicId": "st_cond", "question": "What does `if [] or 0:` do, and why?" }
+      }
+    ],
+    "usage": [
+      { "at": "2026-10-08T17:31:00.000Z", "roadmapId": "rm_py", "path": "/api/practice/set", "model": "gemini-2.5-flash", "inputTokens": 612, "outputTokens": 540 },
+      { "at": "2026-10-08T18:05:00.000Z", "roadmapId": "rm_py", "path": "/api/session", "model": "gemini-2.5-flash", "inputTokens": 980, "outputTokens": 310 }
+    ]
+  }
+}

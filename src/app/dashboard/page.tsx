@@ -23,8 +23,10 @@ import { RoadmapView } from "@/components/RoadmapView";
 import { LastTimeCallback } from "@/components/LastTimeCallback";
 import { GrowthCallout } from "@/components/GrowthCallout";
 import { PacingIndicator } from "@/components/PacingIndicator";
+import { UsageMeter } from "@/components/UsageMeter";
 import {
   activeSession,
+  dueReviews,
   nextSubtopic,
   roadmapProgress,
   sessionsFor,
@@ -59,6 +61,7 @@ export default function DashboardPage() {
   const next = nextSubtopic(roadmap);
   const resume = activeSession(sessions);
   const weak = weakPoints(roadmap);
+  const due = dueReviews(roadmap);
   const lastSummary = summaries[0];
   const growth = summaries.flatMap((s) => s.growth).slice(0, 3);
   const lastMilestone =
@@ -260,8 +263,17 @@ export default function DashboardPage() {
             </div>
           </Card>
 
+          <UsageMeter roadmapId={roadmap.id} />
+
           <section className="space-y-3">
-            <h2 className="text-[15px] font-semibold text-ink">Active recall</h2>
+            <div className="flex items-baseline justify-between gap-2">
+              <h2 className="text-[15px] font-semibold text-ink">Active recall</h2>
+              {due.length > 0 && (
+                <Badge tone="review">
+                  {due.length} due for review
+                </Badge>
+              )}
+            </div>
             <div className="grid gap-3">
               <Link
                 href="/recall/session-wise"

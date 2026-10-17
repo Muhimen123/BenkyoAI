@@ -52,6 +52,7 @@ export function ByokSetup({
   const connectKey = useStudyStore((s) => s.connectKey);
   const [provider, setProvider] = useState<ProviderId>("google");
   const [key, setKey] = useState("");
+  const [model, setModel] = useState("");
   const [reveal, setReveal] = useState(false);
   const [checking, setChecking] = useState(false);
   const [result, setResult] = useState<KeyValidationResult | null>(null);
@@ -63,10 +64,11 @@ export function ByokSetup({
     setChecking(true);
     setResult(null);
     try {
-      const outcome = await validateApiKey({ provider, apiKey: key });
+      const chosenModel = info.defaultModel ? model.trim() || info.defaultModel : undefined;
+      const outcome = await validateApiKey({ provider, apiKey: key, model: chosenModel });
       setResult(outcome);
       if (outcome.valid) {
-        connectKey(provider, key.trim());
+        connectKey(provider, key.trim(), chosenModel);
         setKey("");
         setReveal(false);
       }
@@ -118,6 +120,7 @@ export function ByokSetup({
             value={provider}
             onChange={(v) => {
               setProvider(v);
+              setModel("");
               setResult(null);
             }}
           />
@@ -170,7 +173,7 @@ export function ByokSetup({
       ) : (
         <div className="space-y-3">
           <Field
-            label="Paste your key"
+            label={info.credentialLabel ?? "Paste your key"}
             htmlFor="byok-key"
             hint={
               result && !result.valid ? undefined : (
@@ -188,11 +191,17 @@ export function ByokSetup({
             <div className="relative">
               <Input
                 id="byok-key"
-                type={reveal ? "text" : "password"}
+                type={reveal || provider === "ollama" ? "text" : "password"}
                 value={key}
                 autoComplete="off"
                 spellCheck={false}
-                placeholder={provider === "google" ? "AIza… or AQ…" : `${info.keyPrefix}…`}
+                placeholder={
+                  provider === "google"
+                    ? "AIza… or AQ…"
+                    : provider === "ollama"
+                      ? "http://localhost:11434"
+                      : `${info.keyPrefix}…`
+                }
                 onChange={(e) => {
                   setKey(e.target.value);
                   setResult(null);
@@ -215,6 +224,27 @@ export function ByokSetup({
               </button>
             </div>
           </Field>
+
+          {info.defaultModel && (
+            <Field
+              label="Model"
+              htmlFor="byok-model"
+              hint={<>Leave blank for <span className="font-mono">{info.defaultModel}</span>.</>}
+            >
+              <Input
+                id="byok-model"
+                value={model}
+                autoComplete="off"
+                spellCheck={false}
+                placeholder={info.defaultModel}
+                onChange={(e) => {
+                  setModel(e.target.value);
+                  setResult(null);
+                }}
+                className="font-mono text-sm"
+              />
+            </Field>
+          )}
 
           {result && !result.valid && (
             <p className="flex items-start gap-2 text-[13px] text-clay-700">

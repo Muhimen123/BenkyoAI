@@ -16,6 +16,7 @@ import { MaterialInput } from "@/components/MaterialInput";
 import { getCalibrationQuestions } from "@/lib/api/roadmap";
 import type { CalibrationAnswer, CalibrationQuestion, Purpose } from "@/lib/types";
 import { cn, daysUntil } from "@/lib/utils";
+import { useT } from "@/lib/i18n/LocaleProvider";
 
 /* ------------------------------------------------------------------ topic */
 
@@ -30,41 +31,40 @@ export function TopicStep({
   onNext: () => void;
   onBack?: () => void;
 }) {
+  const { t } = useT();
   return (
     <div className="space-y-7">
       <div className="space-y-2">
         <h2 className="text-[22px] leading-snug font-semibold tracking-tight text-ink sm:text-[26px]">
-          What do you want to learn?
+          {t("onboarding.topic.heading")}
         </h2>
         <p className="text-[15px] leading-relaxed text-ink-soft">
-          Write it the way you'd say it out loud. A subject, a chapter, a skill,
-          a thing you keep failing questions on.
+          {t("onboarding.topic.lede")}
         </p>
       </div>
 
       <Field
-        label="Your topic"
+        label={t("onboarding.topic.fieldLabel")}
         htmlFor="topic"
-        hint="Specific beats broad: “SN1 vs SN2 mechanisms” gets you a sharper roadmap than “chemistry”."
+        hint={t("onboarding.topic.hint")}
       >
         <Textarea
           id="topic"
           rows={3}
           value={topic}
           autoFocus
-          placeholder="e.g. Organic chemistry — substitution and elimination mechanisms, for my end-of-term exam"
+          placeholder={t("onboarding.topic.placeholder")}
           onChange={(e) => onTopicChange(e.target.value)}
         />
       </Field>
 
       <div className="space-y-2">
         <div className="flex items-baseline justify-between">
-          <p className="text-sm font-medium text-ink">Add your own material</p>
-          <span className="label-data text-ink-faint">optional</span>
+          <p className="text-sm font-medium text-ink">{t("onboarding.topic.addMaterial")}</p>
+          <span className="label-data text-ink-faint">{t("common.optional")}</span>
         </div>
         <p className="text-[13px] text-ink-soft">
-          If you have slides or notes, the roadmap is built around them instead
-          of a generic outline.
+          {t("onboarding.topic.materialLede")}
         </p>
         <MaterialInput compact />
       </div>
@@ -72,11 +72,11 @@ export function TopicStep({
       <div className="flex gap-2">
         {onBack && (
           <Button variant="ghost" onClick={onBack}>
-            Back
+            {t("common.back")}
           </Button>
         )}
         <Button size="lg" onClick={onNext} disabled={topic.trim().length < 3} className="flex-1">
-          Continue
+          {t("common.continue")}
         </Button>
       </div>
     </div>
@@ -98,6 +98,7 @@ export function CalibrationStep({
   onNext: () => void;
   onBack: () => void;
 }) {
+  const { t } = useT();
   const [questions, setQuestions] = useState<CalibrationQuestion[] | null>(null);
 
   useEffect(() => {
@@ -118,11 +119,10 @@ export function CalibrationStep({
     <div className="space-y-7">
       <div className="space-y-2">
         <h2 className="text-[22px] leading-snug font-semibold tracking-tight text-ink sm:text-[26px]">
-          Where are you starting from?
+          {t("onboarding.calibration.heading")}
         </h2>
         <p className="text-[15px] leading-relaxed text-ink-soft">
-          Three questions. Answer honestly — overstating it just means the first
-          few sessions feel like a wall.
+          {t("onboarding.calibration.lede")}
         </p>
       </div>
 
@@ -184,10 +184,10 @@ export function CalibrationStep({
 
       <div className="flex gap-2">
         <Button variant="ghost" onClick={onBack}>
-          Back
+          {t("common.back")}
         </Button>
         <Button size="lg" onClick={onNext} disabled={!complete} className="flex-1">
-          Continue
+          {t("common.continue")}
         </Button>
       </div>
     </div>
@@ -198,33 +198,33 @@ export function CalibrationStep({
 
 const PURPOSES: {
   id: Purpose;
-  label: string;
+  labelKey: string;
   icon: typeof GraduationCap;
-  effect: string;
+  effectKey: string;
 }[] = [
   {
     id: "exam",
-    label: "An exam",
+    labelKey: "onboarding.purpose.exam.label",
+    effectKey: "onboarding.purpose.exam.effect",
     icon: GraduationCap,
-    effect: "Short cycles, heavy recall, ruthless about what's examinable.",
   },
   {
     id: "project",
-    label: "A project",
+    labelKey: "onboarding.purpose.project.label",
+    effectKey: "onboarding.purpose.project.effect",
     icon: Hammer,
-    effect: "Depth where you'll build, skimmed where you won't.",
   },
   {
     id: "job",
-    label: "Work or interviews",
+    labelKey: "onboarding.purpose.job.label",
+    effectKey: "onboarding.purpose.job.effect",
     icon: Briefcase,
-    effect: "Front-loads what colleagues and interviewers assume you know.",
   },
   {
     id: "curiosity",
-    label: "Curiosity",
+    labelKey: "onboarding.purpose.curiosity.label",
+    effectKey: "onboarding.purpose.curiosity.effect",
     icon: Sparkles,
-    effect: "Unhurried, follows what you find interesting.",
   },
 ];
 
@@ -245,22 +245,22 @@ export function PurposeStep({
   onSubmit: () => void;
   submitting: boolean;
 }) {
+  const { t } = useT();
   const days = daysUntil(deadline);
 
   return (
     <div className="space-y-7">
       <div className="space-y-2">
         <h2 className="text-[22px] leading-snug font-semibold tracking-tight text-ink sm:text-[26px]">
-          Why this, why now?
+          {t("onboarding.purpose.heading")}
         </h2>
         <p className="text-[15px] leading-relaxed text-ink-soft">
-          This changes the roadmap, not just the tone — how fast it moves, how
-          deep it goes, and what it's willing to skip.
+          {t("onboarding.purpose.lede")}
         </p>
       </div>
 
       <div className="grid gap-2 sm:grid-cols-2">
-        {PURPOSES.map(({ id, label, icon: Icon, effect }) => (
+        {PURPOSES.map(({ id, labelKey, effectKey, icon: Icon }) => (
           <button
             key={id}
             type="button"
@@ -278,22 +278,22 @@ export function PurposeStep({
                 purpose === id ? "text-gold-700" : "text-ink-faint",
               )}
             />
-            <p className="text-sm font-medium text-ink">{label}</p>
-            <p className="mt-1 text-[13px] leading-snug text-ink-soft">{effect}</p>
+            <p className="text-sm font-medium text-ink">{t(labelKey)}</p>
+            <p className="mt-1 text-[13px] leading-snug text-ink-soft">{t(effectKey)}</p>
           </button>
         ))}
       </div>
 
       <Field
-        label="Deadline"
+        label={t("onboarding.purpose.deadlineLabel")}
         htmlFor="deadline"
         optional
         hint={
           days === null
-            ? "If there's a date, the roadmap paces itself to hit it."
+            ? t("onboarding.purpose.deadlineHintNone")
             : days > 0
-              ? `${days} days out. Pacing will be set to fit.`
-              : "That date has passed — pick another one."
+              ? t("onboarding.purpose.deadlineHintDays", { days })
+              : t("onboarding.purpose.deadlineHintPast")
         }
       >
         <div className="relative">
@@ -310,7 +310,7 @@ export function PurposeStep({
 
       <div className="flex gap-2">
         <Button variant="ghost" onClick={onBack} disabled={submitting}>
-          Back
+          {t("common.back")}
         </Button>
         <Button
           size="lg"
@@ -319,7 +319,7 @@ export function PurposeStep({
           loading={submitting}
           className="flex-1"
         >
-          Build my roadmap
+          {t("onboarding.purpose.submit")}
         </Button>
       </div>
     </div>
@@ -329,13 +329,14 @@ export function PurposeStep({
 /* -------------------------------------------------------------- building */
 
 const BUILD_LINES = [
-  "Reading what you gave it",
-  "Placing you on the map",
-  "Ordering the steps",
-  "Setting the pace",
-];
+  "onboarding.building.reading",
+  "onboarding.building.placing",
+  "onboarding.building.ordering",
+  "onboarding.building.pacing",
+] as const;
 
 export function BuildingRoadmap({ topic }: { topic: string }) {
+  const { t } = useT();
   const [line, setLine] = useState(0);
 
   useEffect(() => {
@@ -349,15 +350,15 @@ export function BuildingRoadmap({ topic }: { topic: string }) {
   return (
     <div className="flex min-h-[50vh] flex-col justify-center space-y-6">
       <div className="space-y-2">
-        <p className="label-data text-gold-700">Building</p>
+        <p className="label-data text-gold-700">{t("onboarding.building.label")}</p>
         <h2 className="text-[22px] leading-snug font-semibold tracking-tight text-ink sm:text-[26px]">
           {topic}
         </h2>
       </div>
       <ul className="space-y-2.5">
-        {BUILD_LINES.map((text, i) => (
+        {BUILD_LINES.map((key, i) => (
           <li
-            key={text}
+            key={key}
             className={cn(
               "flex items-center gap-2.5 text-sm transition-opacity duration-500",
               i <= line ? "text-ink-soft opacity-100" : "text-ink-faint opacity-40",
@@ -370,7 +371,7 @@ export function BuildingRoadmap({ topic }: { topic: string }) {
             ) : (
               <span className="size-1.5 rounded-full bg-line-strong" />
             )}
-            {text}
+            {t(key)}
           </li>
         ))}
       </ul>

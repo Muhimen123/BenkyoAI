@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { KeyRound } from "lucide-react";
 
 import { GitHubLink } from "@/components/shell/GitHubLink";
+import { LanguageToggle } from "@/components/shell/LanguageToggle";
+import { useT } from "@/lib/i18n/LocaleProvider";
 import { ByokSetup } from "@/components/byok/ByokSetup";
 import { MemoryStrip, RoadmapPreview } from "@/components/onboarding/RoadmapPreview";
 import {
@@ -25,11 +27,11 @@ import { materialText } from "@/lib/rag";
 import { useStudyStore } from "@/store/useStudyStore";
 
 const STEPS = [
-  { id: "key", label: "Connect a key" },
-  { id: "topic", label: "Your topic" },
-  { id: "level", label: "Your level" },
-  { id: "purpose", label: "Your reason" },
-];
+  { id: "key", labelKey: "onboarding.steps.key" },
+  { id: "topic", labelKey: "onboarding.steps.topic" },
+  { id: "level", labelKey: "onboarding.steps.level" },
+  { id: "purpose", labelKey: "onboarding.steps.purpose" },
+] as const;
 
 export default function OnboardingPage() {
   return (
@@ -53,6 +55,7 @@ function OnboardingFlow() {
   const setDraft = useStudyStore((s) => s.setDraft);
   const setRoadmap = useStudyStore((s) => s.setRoadmap);
   const setSummary = useStudyStore((s) => s.setSummary);
+  const { t } = useT();
 
   const [rawStep, setRawStep] = useState(0);
   const [building, setBuilding] = useState(false);
@@ -111,7 +114,7 @@ function OnboardingFlow() {
       router.push("/dashboard");
     } catch {
       setBuilding(false);
-      setError("The roadmap didn't come back. Check your key in step one and try again.");
+      setError(t("onboarding.error.roadmapFailed"));
     }
   }
 
@@ -120,7 +123,7 @@ function OnboardingFlow() {
     if (step === 0)
       return (
         <ByokSetup
-          heading={reconnecting ? "Reconnect an AI key" : "First, connect an AI key"}
+          heading={reconnecting ? t("onboarding.reconnect.heading") : t("onboarding.reconnect.firstHeading")}
           onConnected={() => (reconnecting ? router.replace("/dashboard") : setRawStep(1))}
         />
       );
@@ -205,28 +208,28 @@ function OnboardingFlow() {
       <div className="relative mx-auto max-w-6xl px-5 pt-10 pb-16 sm:px-8 sm:pt-14 lg:pt-20">
         <header className="flex items-center justify-between gap-4">
           <GitHubLink />
-          <p className="label-data hidden text-ink-faint sm:block">
-            No accounts · Runs on your key
-          </p>
+          <div className="flex items-center gap-2">
+            <LanguageToggle />
+            <p className="label-data hidden text-ink-faint sm:block">
+              {t("onboarding.header.noAccounts")}
+            </p>
+          </div>
         </header>
 
         <div className="mt-10 grid gap-x-16 gap-y-8 border-b border-line pb-10 lg:mt-14 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:pb-14">
           <div>
             <h1 className="text-[34px] leading-[1.05] font-semibold tracking-tight text-ink sm:text-[46px] lg:text-[54px]">
-              Study that
+              {t("onboarding.hero.line1")}
               <br />
-              remembers what
+              {t("onboarding.hero.line2")}
               <br />
               <span className="relative inline-block">
-                you got wrong
+                {t("onboarding.hero.line3")}
                 <span className="absolute inset-x-0 -bottom-1 h-2 -skew-x-6 bg-maize-100" />
               </span>
-              .
             </h1>
             <p className="mt-6 max-w-md text-[16px] leading-relaxed text-ink-soft">
-              A roadmap built around where you actually are. Practice at every
-              step. Old mistakes folded quietly back in until they stop being
-              mistakes.
+              {t("onboarding.hero.lede")}
             </p>
 
             {/* the four moves, as a typed sequence rather than a card grid */}
@@ -240,7 +243,7 @@ function OnboardingFlow() {
                         : "label-data rounded-md px-1.5 py-0.5 text-ink-faint transition-colors"
                     }
                   >
-                    {s.label}
+                    {t(s.labelKey)}
                   </span>
                   {i < flowSteps.length - 1 && (
                     <span className="text-ink-faint" aria-hidden>
@@ -302,8 +305,10 @@ function OnboardingFlow() {
               <div className="rounded-2xl border border-sage-100 bg-sage-50 p-6 sm:p-8 shadow-sm h-fit">
                 <div className="sticky top-24">
                   <p className="label-data text-sage-600 font-semibold">
-                    Step {String(flowIndex + 1).padStart(2, "0")} of{" "}
-                    {String(flowSteps.length).padStart(2, "0")}
+                    {t("onboarding.stepOf", {
+                      n: String(flowIndex + 1).padStart(2, "0"),
+                      m: String(flowSteps.length).padStart(2, "0"),
+                    })}
                   </p>
 
                   <div className="-mt-6 flex items-center gap-40">
@@ -322,7 +327,7 @@ function OnboardingFlow() {
                   </div>
 
                   <p className="-mt-4 max-w-[22ch] text-[13px] leading-snug font-medium text-sage-700">
-                    {flowSteps[flowIndex]?.label}
+                    {t(flowSteps[flowIndex]?.labelKey ?? "")}
                   </p>
                 </div>
               </div>
@@ -330,8 +335,7 @@ function OnboardingFlow() {
           </main>
         </div>
         <footer className="mt-4 px-5 pb-8 text-center text-[11px] text-ink-faint sm:px-8">
-          © {new Date().getFullYear()} BenkyoAI — copyrighted by Al Muhimen, Nishat
-          Tasnim Meem, Fariha Tasnim Amir
+          {t("common.footerCopyright", { year: new Date().getFullYear() })}
         </footer>
       </div>
     </div>

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { DM_Serif_Display, IBM_Plex_Mono, Inter } from "next/font/google";
+import { LocaleProvider } from "@/lib/i18n/LocaleProvider";
 import "./globals.css";
 
 const display = DM_Serif_Display({
@@ -42,7 +43,7 @@ export default function RootLayout({
       <body
         className={`${ui.variable} ${display.variable} ${data.variable} antialiased`}
       >
-        {children}
+        <LocaleProvider>{children}</LocaleProvider>
       </body>
     </html>
   );

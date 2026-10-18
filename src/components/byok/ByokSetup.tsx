@@ -19,36 +19,28 @@ import { validateApiKey } from "@/lib/api/byok";
 import { useStudyStore } from "@/store/useStudyStore";
 import type { KeyValidationResult, ProviderId } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/LocaleProvider";
 
 const FACTS = [
-  {
-    icon: Laptop,
-    title: "Stays on this device",
-    body: "The key is saved in this browser only. BenkyoAI has no server that holds it.",
-  },
-  {
-    icon: Wallet,
-    title: "Your usage, your cost",
-    body: "Requests are billed to your provider account, at their rates. No subscription here.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Revoke whenever",
-    body: "Delete the key at the provider and it stops working immediately, everywhere.",
-  },
+  { icon: Laptop, titleKey: "onboarding.byok.facts.stays.title", bodyKey: "onboarding.byok.facts.stays.body" },
+  { icon: Wallet, titleKey: "onboarding.byok.facts.wallet.title", bodyKey: "onboarding.byok.facts.wallet.body" },
+  { icon: ShieldCheck, titleKey: "onboarding.byok.facts.shield.title", bodyKey: "onboarding.byok.facts.shield.body" },
 ];
 
 export function ByokSetup({
   onConnected,
-  heading = "Connect your AI key",
+  heading,
   showExplainer = true,
-  submitLabel = "Connect key",
+  submitLabel,
 }: {
   onConnected?: () => void;
   heading?: string;
   showExplainer?: boolean;
   submitLabel?: string;
 }) {
+  const { t } = useT();
+  const headingText = heading ?? t("onboarding.byok.heading");
+  const submitLabelText = submitLabel ?? t("common.connectKey");
   const connectKey = useStudyStore((s) => s.connectKey);
   const [provider, setProvider] = useState<ProviderId>("google");
   const [key, setKey] = useState("");
@@ -76,7 +68,7 @@ export function ByokSetup({
       setResult({
         valid: false,
         provider,
-        message: "Couldn't reach the provider. Check your connection and try again.",
+        message: t("onboarding.byok.errorUnreachable"),
       });
     } finally {
       setChecking(false);
@@ -89,21 +81,18 @@ export function ByokSetup({
         <div className="space-y-5">
           <div className="max-w-xl space-y-3">
             <h2 className="text-[22px] leading-snug font-semibold tracking-tight text-ink sm:text-[26px]">
-              {heading}
+              {headingText}
             </h2>
             <p className="text-[15px] leading-relaxed text-ink-soft">
-              BenkyoAI has no accounts and nothing to sign up for. It runs on an
-              API key — a long string you get from an AI provider that lets this
-              app ask questions on your behalf. Getting one takes about a minute
-              and most providers start you off free.
+              {t("onboarding.byok.explainer")}
             </p>
           </div>
           <ul className="grid gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-3">
-            {FACTS.map(({ icon: Icon, title, body }) => (
-              <li key={title} className="bg-surface p-4">
+            {FACTS.map(({ icon: Icon, titleKey, bodyKey }) => (
+              <li key={titleKey} className="bg-surface p-4">
                 <Icon className="mb-2.5 size-4 text-gold-500" />
-                <p className="text-sm font-medium text-ink">{title}</p>
-                <p className="mt-1 text-[13px] leading-snug text-ink-soft">{body}</p>
+                <p className="text-sm font-medium text-ink">{t(titleKey)}</p>
+                <p className="mt-1 text-[13px] leading-snug text-ink-soft">{t(bodyKey)}</p>
               </li>
             ))}
           </ul>
@@ -112,9 +101,9 @@ export function ByokSetup({
 
       <div className="space-y-4">
         <div className="space-y-2">
-          <p className="text-sm font-medium text-ink">Pick a provider</p>
+          <p className="text-sm font-medium text-ink">{t("onboarding.byok.pickProvider")}</p>
           <Segmented
-            ariaLabel="AI provider"
+            ariaLabel={t("onboarding.byok.pickProvider")}
             full
             options={PROVIDERS.map((p) => ({ value: p.id, label: p.name }))}
             value={provider}
@@ -147,7 +136,7 @@ export function ByokSetup({
           rel="noreferrer"
           className="inline-flex items-center gap-1.5 text-sm font-medium text-gold-700 underline decoration-gold-200 underline-offset-4 transition-colors hover:decoration-gold-500"
         >
-          Open {info.name}
+          {t("onboarding.byok.openProvider", { name: info.name })}
           <ArrowUpRight className="size-3.5" />
         </a>
       </div>
@@ -157,34 +146,27 @@ export function ByokSetup({
           <CheckCircle2 className="size-5 text-sage-700" />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-ink">
-              {getProvider(result.provider).name} connected
+              {t("onboarding.byok.connected", { name: getProvider(result.provider).name })}
             </p>
             <p className="text-[13px] text-ink-soft">
-              Saved to this browser. You won't see the key again — replace it any
-              time in Settings.
+              {t("onboarding.byok.savedNote")}
             </p>
           </div>
           {onConnected && (
             <Button onClick={onConnected} size="sm">
-              Continue
+              {t("common.continue")}
             </Button>
           )}
         </div>
       ) : (
         <div className="space-y-3">
           <Field
-            label={info.credentialLabel ?? "Paste your key"}
+            label={info.credentialLabel ?? t("onboarding.byok.keyLabel")}
             htmlFor="byok-key"
             hint={
-              result && !result.valid ? undefined : (
-                <>
-                  Starts with{" "}
-                  <span className="font-mono">
-                    {provider === "google" ? "AIza… or AQ…" : info.keyPrefix}
-                  </span>
-                  . Checked as soon as you connect.
-                </>
-              )
+              result && !result.valid ? undefined : t("onboarding.byok.keyHint", {
+                prefix: provider === "google" ? "AIza… or AQ…" : info.keyPrefix,
+              })
             }
             error={result && !result.valid ? result.message : undefined}
           >
@@ -217,7 +199,7 @@ export function ByokSetup({
               <button
                 type="button"
                 onClick={() => setReveal((r) => !r)}
-                aria-label={reveal ? "Hide key" : "Show key"}
+                aria-label={reveal ? t("onboarding.byok.hideKey") : t("onboarding.byok.showKey")}
                 className="absolute top-1/2 right-2 -translate-y-1/2 rounded-md p-1.5 text-ink-faint transition-colors hover:bg-sunk hover:text-ink"
               >
                 {reveal ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
@@ -227,9 +209,9 @@ export function ByokSetup({
 
           {info.defaultModel && (
             <Field
-              label="Model"
+              label={t("onboarding.byok.modelLabel")}
               htmlFor="byok-model"
-              hint={<>Leave blank for <span className="font-mono">{info.defaultModel}</span>.</>}
+              hint={t("onboarding.byok.modelHint", { model: info.defaultModel })}
             >
               <Input
                 id="byok-model"
@@ -249,7 +231,7 @@ export function ByokSetup({
           {result && !result.valid && (
             <p className="flex items-start gap-2 text-[13px] text-clay-700">
               <XCircle className="mt-px size-3.5 shrink-0" />
-              Nothing was saved. Fix the key above and try again.
+              {t("onboarding.byok.notSaved")}
             </p>
           )}
 
@@ -260,7 +242,7 @@ export function ByokSetup({
             size="lg"
             full
           >
-            {checking ? "Checking with " + info.name + "…" : submitLabel}
+            {checking ? t("onboarding.byok.checkingWith", { name: info.name }) : submitLabelText}
           </Button>
         </div>
       )}

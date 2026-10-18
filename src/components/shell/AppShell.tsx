@@ -10,12 +10,14 @@ import { Wordmark } from "./Wordmark";
 import { KeyStatus } from "./KeyStatus";
 import { GitHubLink } from "./GitHubLink";
 import { ByokSetup } from "@/components/byok/ByokSetup";
+import { LanguageToggle } from "@/components/shell/LanguageToggle";
+import { useT } from "@/lib/i18n/LocaleProvider";
 
 const NAV = [
-  { href: "/dashboard", label: "Today", icon: Compass },
-  { href: "/vault", label: "Vault", icon: Library },
-  { href: "/settings", label: "Settings", icon: Settings2 },
-];
+  { href: "/dashboard", labelKey: "shell.nav.today", icon: Compass },
+  { href: "/vault", labelKey: "shell.nav.vault", icon: Library },
+  { href: "/settings", labelKey: "shell.nav.settings", icon: Settings2 },
+] as const;
 
 export function AppShell({
   children,
@@ -31,11 +33,13 @@ export function AppShell({
   const hydrated = useStudyStore((s) => s.hydrated);
   const connection = useStudyStore((s) => s.connection);
   const examNight = useStudyStore((s) => s.examNight);
+  const { t } = useT();
 
   // No accounts to check — the only gate is whether a key is connected. The
   // gate renders in place rather than redirecting: bouncing between routes on a
   // missing key is what caused the loop when someone removed their key.
   const gated = hydrated && !connection;
+  const navItems = NAV.map((n) => ({ ...n, label: t(n.labelKey) }));
 
   return (
     <div
@@ -53,7 +57,7 @@ export function AppShell({
             <Wordmark size="sm" />
           </Link>
           <nav className="hidden flex-1 items-center gap-1 sm:flex">
-            {NAV.map((item) => {
+            {navItems.map((item) => {
               const active = pathname.startsWith(item.href);
               return (
                 <Link
@@ -72,6 +76,7 @@ export function AppShell({
             })}
           </nav>
           <div className="ml-auto sm:ml-0 flex items-center gap-2">
+            <LanguageToggle />
             <GitHubLink />
             <KeyStatus />
           </div>
@@ -88,14 +93,13 @@ export function AppShell({
         {gated ? <KeyGate /> : children}
 
         <footer className="mx-auto mt-10 max-w-5xl pb-24 text-center text-[11px] text-ink-faint sm:pb-6">
-          © {new Date().getFullYear()} BenkyoAI — copyrighted by Al Muhimen, Nishat
-          Tasnim Meem, Fariha Tasnim Amir
+          {t("common.footerCopyright", { year: new Date().getFullYear() })}
         </footer>
       </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-paper/95 backdrop-blur-md sm:hidden">
         <div className="mx-auto flex max-w-md items-stretch">
-          {NAV.map((item) => {
+          {navItems.map((item) => {
             const active = pathname.startsWith(item.href);
             const Icon = item.icon;
             return (
@@ -149,15 +153,14 @@ export function PageHead({
 
 /** Shown in place of any screen's content while no key is connected. */
 function KeyGate() {
+  const { t } = useT();
   return (
     <div className="mx-auto max-w-xl">
       <p className="mb-6 flex items-start gap-2.5 rounded-lg border border-gold-200 bg-gold-50 px-4 py-3 text-[13px] leading-snug text-gold-700">
         <KeyRound className="mt-0.5 size-3.5 shrink-0" />
-        No key connected, so nothing can run. Your roadmap, materials and
-        progress are untouched — connect a key and you&apos;ll pick up exactly
-        where you were.
+        {t("shell.keyGate.body")}
       </p>
-      <ByokSetup heading="Connect an AI key" submitLabel="Connect key" />
+      <ByokSetup heading={t("shell.keyGate.heading")} submitLabel={t("common.connectKey")} />
     </div>
   );
 }

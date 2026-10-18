@@ -11,10 +11,12 @@ import { EmptyState, Eyebrow, Skeleton } from "@/components/ui/Feedback";
 import { MasteryMeter, StatusDot } from "@/components/ui/MasteryMeter";
 import { DepthControl } from "@/components/DepthControl";
 import { RoadmapControls } from "@/components/RoadmapControls";
+import { useT } from "@/lib/i18n/LocaleProvider";
 import { useStudyStore } from "@/store/useStudyStore";
 
 export default function TopicPage() {
   const params = useParams<{ topicId: string }>();
+  const { t } = useT();
   const hydrated = useStudyStore((s) => s.hydrated);
   const roadmap = useStudyStore((s) => s.roadmap);
   const topic = roadmap?.topics.find((t) => t.id === params.topicId);
@@ -32,12 +34,12 @@ export default function TopicPage() {
     return (
       <AppShell>
         <EmptyState
-          title="That topic isn't in your vault"
-          body="It may have been removed when the roadmap was rebuilt."
+          title={t("topic.empty.title")}
+          body={t("topic.empty.body")}
           action={
             <Link href="/vault">
               <Button size="sm" variant="secondary">
-                Back to vault
+                {t("topic.empty.back")}
               </Button>
             </Link>
           }
@@ -56,11 +58,14 @@ export default function TopicPage() {
         className="mb-5 inline-flex items-center gap-1.5 text-[13px] text-ink-soft transition-colors hover:text-ink"
       >
         <ArrowLeft className="size-3.5" />
-        Vault
+        {t("shell.nav.vault")}
       </Link>
 
       <PageHead
-        eyebrow={`Topic ${String(index + 1).padStart(2, "0")} of ${String(roadmap.topics.length).padStart(2, "0")}`}
+        eyebrow={t("topic.eyebrow", {
+          n: String(index + 1).padStart(2, "0"),
+          m: String(roadmap.topics.length).padStart(2, "0"),
+        })}
         title={topic.title}
         lede={topic.summary}
         actions={<RoadmapControls roadmap={roadmap} />}
@@ -71,7 +76,7 @@ export default function TopicPage() {
           {topic.isMilestone && (
             <p className="flex items-center gap-2 text-[13px] text-gold-700">
               <Flag className="size-3.5" />
-              A milestone — recall runs against everything up to here.
+              {t("topic.milestoneNote")}
             </p>
           )}
 
@@ -91,7 +96,7 @@ export default function TopicPage() {
                       <span className="text-[15px] font-medium text-ink">{sub.title}</span>
                       {sub.isWeakPoint && (
                         <Badge tone="review" icon={<Sparkles className="size-2.5" />}>
-                          review blended in
+                          {t("topic.reviewBlended")}
                         </Badge>
                       )}
                     </span>
@@ -117,7 +122,7 @@ export default function TopicPage() {
               className="flex items-center justify-between gap-3 rounded-xl border border-line bg-surface px-4 py-3.5 transition-colors hover:border-line-strong sm:px-5"
             >
               <span>
-                <Eyebrow>Next topic</Eyebrow>
+                <Eyebrow>{t("topic.nextTopic")}</Eyebrow>
                 <span className="mt-0.5 block text-sm font-medium text-ink">
                   {nextTopic.title}
                 </span>
@@ -130,23 +135,24 @@ export default function TopicPage() {
         <aside className="space-y-5">
           <Card className="space-y-4">
             <div>
-              <Eyebrow>Topic mastery</Eyebrow>
+              <Eyebrow>{t("topic.topicMastery")}</Eyebrow>
               <p className="mt-1.5 text-[28px] leading-none font-semibold tracking-tight text-ink tabular-nums">
                 {topic.mastery}%
               </p>
             </div>
             <MasteryMeter value={topic.mastery} status={topic.status} />
             <p className="text-[13px] leading-snug text-ink-soft">
-              {topic.subtopics.filter((s) => s.status === "mastered").length} of{" "}
-              {topic.subtopics.length} steps mastered.
+              {t("topic.stepsMastered", {
+                done: topic.subtopics.filter((s) => s.status === "mastered").length,
+                total: topic.subtopics.length,
+              })}
             </p>
           </Card>
 
           <Card className="space-y-3">
             <DepthControl />
             <p className="border-t border-line pt-3 text-[13px] leading-snug text-ink-soft">
-              Applies to explanations across this topic. You can change it mid-step
-              without losing your place.
+              {t("topic.depthNote")}
             </p>
           </Card>
         </aside>

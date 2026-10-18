@@ -5,11 +5,13 @@ import { KeyRound } from "lucide-react";
 import { useStudyStore } from "@/store/useStudyStore";
 import { getProvider } from "@/lib/api/providers";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/LocaleProvider";
 
 /** Always-visible answer to "is my key working right now". */
 export function KeyStatus({ className }: { className?: string }) {
   const connection = useStudyStore((s) => s.connection);
   const hydrated = useStudyStore((s) => s.hydrated);
+  const { t } = useT();
 
   if (!hydrated) return <span className={cn("h-7 w-24", className)} />;
 
@@ -21,8 +23,8 @@ export function KeyStatus({ className }: { className?: string }) {
       href="/settings"
       aria-label={
         connection
-          ? `AI key connected to ${provider}. Manage it in settings.`
-          : "No AI key connected. Connect one in settings."
+          ? t("shell.keyStatus.ariaConnected", { provider: getProvider(connection.provider).name })
+          : t("shell.keyStatus.ariaNone")
       }
       className={cn(
         "group inline-flex items-center gap-2 rounded-full border px-2.5 py-1 transition-colors",
@@ -49,7 +51,7 @@ export function KeyStatus({ className }: { className?: string }) {
           invalid ? "text-clay-700" : "text-ink-soft",
         )}
       >
-        {connection ? provider : "No key"}
+        {connection ? provider : t("shell.keyStatus.noKey")}
       </span>
       <KeyRound
         className={cn(

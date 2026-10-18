@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { History } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { useT } from "@/lib/i18n/LocaleProvider";
 import type { SessionSummary } from "@/lib/types";
 import { cn, relativeTime } from "@/lib/utils";
 
@@ -17,6 +18,7 @@ export function LastTimeCallback({
   summary: SessionSummary;
   className?: string;
 }) {
+  const { t } = useT();
   if (!summary.carryOver) return null;
 
   return (
@@ -28,18 +30,18 @@ export function LastTimeCallback({
     >
       <p className="label-data flex items-center gap-1.5 text-maize-700">
         <History className="size-3" />
-        Picking up from {relativeTime(summary.endedAt)}
+        {t("callback.pickingUp", { when: relativeTime(summary.endedAt) })}
       </p>
       <p className="mt-2.5 text-[17px] leading-snug font-medium text-ink">
         {summary.carryOver.question}
       </p>
       <div className="mt-4 flex flex-wrap gap-2">
         <Link href={`/subtopic/${summary.carryOver.subtopicId}?mode=recall`}>
-          <Button size="sm">Check if it stuck</Button>
+          <Button size="sm">{t("callback.checkStuck")}</Button>
         </Link>
         <Link href={`/subtopic/${summary.carryOver.subtopicId}`}>
           <Button size="sm" variant="ghost">
-            Re-read it first
+            {t("callback.rereadFirst")}
           </Button>
         </Link>
       </div>

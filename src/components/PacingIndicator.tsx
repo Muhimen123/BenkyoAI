@@ -1,4 +1,7 @@
+"use client";
+
 import { CalendarClock } from "lucide-react";
+import { useT } from "@/lib/i18n/LocaleProvider";
 import type { Roadmap } from "@/lib/types";
 import { cn, daysUntil, formatDate } from "@/lib/utils";
 
@@ -12,12 +15,13 @@ export function PacingIndicator({
   mastery: number;
   className?: string;
 }) {
+  const { t } = useT();
   const days = daysUntil(roadmap.deadline);
 
   if (days === null) {
     return (
       <p className={cn("text-[13px] leading-snug text-ink-soft", className)}>
-        No deadline set. {roadmap.pacing.note}
+        {t("pacing.noDeadline", { note: roadmap.pacing.note })}
       </p>
     );
   }
@@ -31,7 +35,9 @@ export function PacingIndicator({
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <span className="label-data flex items-center gap-1.5 text-ink-soft">
           <CalendarClock className="size-3" />
-          {days > 0 ? `${days} days to ${formatDate(roadmap.deadline)}` : "Deadline passed"}
+          {days > 0
+            ? t("pacing.daysTo", { days, date: formatDate(roadmap.deadline) })
+            : t("pacing.deadlinePassed")}
         </span>
         <span
           className={cn(
@@ -39,7 +45,7 @@ export function PacingIndicator({
             behind ? "text-clay-700" : "text-sage-700",
           )}
         >
-          {behind ? "behind pace" : "on pace"}
+          {behind ? t("pacing.behind") : t("pacing.onPace")}
         </span>
       </div>
       <div className="relative h-1 overflow-hidden rounded-full bg-line">
@@ -57,8 +63,11 @@ export function PacingIndicator({
         />
       </div>
       <p className="text-[13px] leading-snug text-ink-soft">
-        {roadmap.pacing.sessionsPerWeek} sessions a week ·{" "}
-        {roadmap.pacing.minutesPerSession} min each. {roadmap.pacing.note}
+        {t("pacing.sessionsNote", {
+          perWeek: roadmap.pacing.sessionsPerWeek,
+          perSession: roadmap.pacing.minutesPerSession,
+          note: roadmap.pacing.note,
+        })}
       </p>
     </div>
   );

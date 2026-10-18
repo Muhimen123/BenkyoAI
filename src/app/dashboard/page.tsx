@@ -24,6 +24,7 @@ import { LastTimeCallback } from "@/components/LastTimeCallback";
 import { GrowthCallout } from "@/components/GrowthCallout";
 import { PacingIndicator } from "@/components/PacingIndicator";
 import { UsageMeter } from "@/components/UsageMeter";
+import { useT } from "@/lib/i18n/LocaleProvider";
 import {
   activeSession,
   dueReviews,
@@ -36,11 +37,11 @@ import {
 } from "@/store/useStudyStore";
 import type { Purpose } from "@/lib/types";
 
-const PURPOSE_LABEL: Record<Purpose, string> = {
-  exam: "Studying for an exam",
-  project: "Learning for a project",
-  job: "Learning for work",
-  curiosity: "Learning out of curiosity",
+const PURPOSE_LABEL_KEY: Record<Purpose, string> = {
+  exam: "dashboard.purpose.exam",
+  project: "dashboard.purpose.project",
+  job: "dashboard.purpose.job",
+  curiosity: "dashboard.purpose.curiosity",
 };
 
 export default function DashboardPage() {
@@ -52,6 +53,7 @@ export default function DashboardPage() {
   const allSessions = useStudyStore((s) => s.sessions);
   const allSummaries = useStudyStore((s) => s.summaries);
   const startSession = useStudyStore((s) => s.startSession);
+  const { t, tp } = useT();
 
   // Scoped to the roadmap in view — the store keeps one flat list for all of them.
   const sessions = sessionsFor(allSessions, roadmap);
@@ -94,7 +96,7 @@ export default function DashboardPage() {
   return (
     <AppShell>
       <PageHead
-        eyebrow={PURPOSE_LABEL[roadmap.purpose]}
+        eyebrow={t(PURPOSE_LABEL_KEY[roadmap.purpose])}
         title={roadmap.title}
         actions={
           <div className="flex flex-wrap items-center gap-2">
@@ -102,7 +104,7 @@ export default function DashboardPage() {
               <select
                 value={roadmap.id}
                 onChange={(e) => switchRoadmap(e.target.value)}
-                aria-label="Switch roadmap"
+                aria-label={t("dashboard.switchRoadmap")}
                 className="h-9 max-w-[45vw] rounded-lg border border-line bg-surface px-2.5 text-[13px] text-ink sm:max-w-none"
               >
                 {roadmaps.map((r) => (
@@ -114,12 +116,12 @@ export default function DashboardPage() {
             )}
             <Link href="/?new=1">
               <Button variant="secondary" size="sm" icon={<Plus className="size-4" />}>
-                New roadmap
+                {t("dashboard.newRoadmap")}
               </Button>
             </Link>
             <Link href="/vault">
               <Button variant="secondary" size="sm">
-                Open vault
+                {t("dashboard.openVault")}
               </Button>
             </Link>
           </div>
@@ -135,19 +137,18 @@ export default function DashboardPage() {
               <PartyPopper className="mt-0.5 size-5 shrink-0 text-sage-600" />
               <div className="min-w-0">
                 <p className="text-[15px] font-semibold text-sage-900">
-                  Congratulations — you&apos;ve mastered {roadmap.title}!
+                  {t("dashboard.congrats.heading", { title: roadmap.title })}
                 </p>
                 <p className="mt-1 text-[13px] leading-snug text-sage-700/80">
-                  Every step is at mastery level. Do a final exam-night pass to
-                  lock it in, or start another roadmap.
+                  {t("dashboard.congrats.body")}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Link href="/recall/exam-night">
-                    <Button size="sm">Final revision pass</Button>
+                    <Button size="sm">{t("dashboard.congrats.finalPass")}</Button>
                   </Link>
                   <Link href="/?new=1">
                     <Button variant="secondary" size="sm" icon={<Plus className="size-4" />}>
-                      Start a new roadmap
+                      {t("dashboard.congrats.startNew")}
                     </Button>
                   </Link>
                 </div>
@@ -162,29 +163,35 @@ export default function DashboardPage() {
             {/* book cover that flips open */}
             <div className="book-cover flex flex-col justify-center items-center gap-1 rounded-xl p-6 bg-gradient-to-br from-gold-100 to-gold-50 border border-gold-200">
               <Eyebrow className="text-gold-700">
-                {resume ? "Unfinished session" : "Next step"}
+                {resume ? t("dashboard.next.unfinished") : t("dashboard.next.nextStep")}
               </Eyebrow>
               <h3 className="text-center text-[17px] font-semibold text-ink tracking-tight mt-1 max-w-[85%] truncate">
-                {resume?.subtopicTitle ?? next?.subtopic.title ?? "Your next learning milestone"}
+                {resume?.subtopicTitle ?? next?.subtopic.title ?? t("dashboard.next.fallbackTitle")}
               </h3>
-              <span className="label-data text-gold-500 mt-2">Hover to open book ✦</span>
+              <span className="label-data text-gold-500 mt-2">{t("dashboard.next.hoverHint")}</span>
             </div>
 
             <Card tone="accent" inset={false} className="space-y-4 pl-16 pr-5 py-5 sm:pl-24 sm:pr-6 sm:py-6">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
                   <Eyebrow className="text-gold-700">
-                    {resume ? "Unfinished session" : "Next step"}
+                    {resume ? t("dashboard.next.unfinished") : t("dashboard.next.nextStep")}
                   </Eyebrow>
                   <h2 className="mt-1.5 text-[19px] leading-snug font-semibold tracking-tight text-ink">
-                    {resume?.subtopicTitle ?? next?.subtopic.title ?? "Everything is mastered"}
+                    {resume?.subtopicTitle ?? next?.subtopic.title ?? t("dashboard.next.allMastered")}
                   </h2>
                   <p className="mt-1 text-[13px] text-ink-soft">
                     {resume
-                      ? `${resume.topicTitle} · stopped at question ${resume.lastQuestionIndex + 1}`
+                      ? t("dashboard.next.resumeDetail", {
+                          topic: resume.topicTitle ?? "",
+                          n: resume.lastQuestionIndex + 1,
+                        })
                       : next
-                        ? `${next.topic.title} · about ${next.subtopic.estimatedMin} min`
-                        : "Add a topic in the vault, or run an exam-night pass over everything."}
+                        ? t("dashboard.next.nextDetail", {
+                            topic: next.topic.title,
+                            min: next.subtopic.estimatedMin,
+                          })
+                        : t("dashboard.next.emptyDetail")}
                   </p>
                 </div>
                 {next && (
@@ -201,17 +208,17 @@ export default function DashboardPage() {
                   {resume ? (
                     <Link href={`/subtopic/${resume.subtopicId}`}>
                       <Button icon={<PlayCircle className="size-4" />}>
-                        Resume session
+                        {t("dashboard.next.resume")}
                       </Button>
                     </Link>
                   ) : (
                     <Button onClick={openNext} icon={<PlayCircle className="size-4" />}>
-                      Start this step
+                      {t("dashboard.next.startStep")}
                     </Button>
                   )}
                   {weak.length > 0 && (
                     <Badge tone="review" icon={<Sparkles className="size-2.5" />}>
-                      {weak.length} weak point{weak.length > 1 ? "s" : ""} blended in
+                      {tp("dashboard.next.weakPoints", weak.length, { count: weak.length })}
                     </Badge>
                   )}
                 </div>
@@ -221,12 +228,12 @@ export default function DashboardPage() {
 
           <section className="space-y-3">
             <div className="flex items-baseline justify-between">
-              <h2 className="text-[15px] font-semibold text-ink">Your roadmap</h2>
+              <h2 className="text-[15px] font-semibold text-ink">{t("dashboard.roadmapHeading")}</h2>
               <Link
                 href="/vault"
                 className="text-[13px] font-medium text-gold-700 underline decoration-gold-200 underline-offset-4 hover:decoration-gold-500"
               >
-                See everything
+                {t("dashboard.seeEverything")}
               </Link>
             </div>
             <RoadmapView roadmap={roadmap} />
@@ -234,7 +241,7 @@ export default function DashboardPage() {
 
           {growth.length > 0 && (
             <section className="space-y-3">
-              <h2 className="text-[15px] font-semibold text-ink">Since you started</h2>
+              <h2 className="text-[15px] font-semibold text-ink">{t("dashboard.sinceStarted")}</h2>
               <div className="space-y-2">
                 {growth.map((g) => (
                   <GrowthCallout key={g.id} growth={g} />
@@ -247,13 +254,13 @@ export default function DashboardPage() {
         <aside className="min-w-0 space-y-6">
           <Card className="card-reveal space-y-4">
             <div>
-              <Eyebrow>Progress</Eyebrow>
+              <Eyebrow>{t("dashboard.progress")}</Eyebrow>
               <p className="mt-1.5 flex items-baseline gap-2">
                 <span className="text-[30px] leading-none font-semibold tracking-tight text-ink tabular-nums">
                   {progress.mastery}%
                 </span>
                 <span className="text-[13px] text-ink-soft">
-                  {progress.done} of {progress.total} steps mastered
+                  {t("dashboard.stepsMastered", { done: progress.done, total: progress.total })}
                 </span>
               </p>
             </div>
@@ -267,10 +274,10 @@ export default function DashboardPage() {
 
           <section className="space-y-3">
             <div className="flex items-baseline justify-between gap-2">
-              <h2 className="text-[15px] font-semibold text-ink">Active recall</h2>
+              <h2 className="text-[15px] font-semibold text-ink">{t("dashboard.activeRecall")}</h2>
               {due.length > 0 && (
                 <Badge tone="review">
-                  {due.length} due for review
+                  {t("dashboard.dueForReview", { count: due.length })}
                 </Badge>
               )}
             </div>
@@ -283,9 +290,9 @@ export default function DashboardPage() {
                   <Repeat2 className="size-4.5" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-semibold text-sage-900">From last session</span>
+                  <span className="block text-sm font-semibold text-sage-900">{t("dashboard.recall.fromLastSession")}</span>
                   <span className="mt-0.5 block text-[13px] leading-snug text-sage-700/80">
-                    What you covered, plus anything left unresolved.
+                    {t("dashboard.recall.fromLastSessionBody")}
                   </span>
                 </span>
                 <ArrowRight className="mt-1 size-3.5 shrink-0 text-sage-400 transition-transform group-hover:translate-x-0.5" />
@@ -299,11 +306,11 @@ export default function DashboardPage() {
                   <Flag className="size-4.5" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-semibold text-gold-900">Up to a milestone</span>
+                  <span className="block text-sm font-semibold text-gold-900">{t("dashboard.recall.upToMilestone")}</span>
                   <span className="mt-0.5 block text-[13px] leading-snug text-gold-700/80">
                     {lastMilestone
-                      ? `Everything through ${lastMilestone.title}.`
-                      : "Everything up to your first milestone."}
+                      ? t("dashboard.recall.upToMilestoneBody", { title: lastMilestone.title })
+                      : t("dashboard.recall.upToMilestoneBodyEmpty")}
                   </span>
                 </span>
                 <ArrowRight className="mt-1 size-3.5 shrink-0 text-gold-400 transition-transform group-hover:translate-x-0.5" />
@@ -317,17 +324,16 @@ export default function DashboardPage() {
             >
               <span className="label-data flex items-center gap-1.5 text-[#c9d3ad]">
                 <Moon className="size-3" />
-                Exam night
+                {t("dashboard.recall.examNight")}
               </span>
               <span className="mt-2 flex items-center justify-between gap-3">
                 <span className="text-[17px] font-semibold tracking-tight text-[#f3f1e6]">
-                  Revise the whole vault
+                  {t("dashboard.recall.examNightTitle")}
                 </span>
                 <ArrowRight className="size-4 shrink-0 text-[#c9d3ad] transition-transform group-hover:translate-x-0.5" />
               </span>
               <span className="mt-1.5 block text-[13px] leading-snug text-[#a9b78a]">
-                One pass across everything you've studied, weakest first. Dimmed
-                interface, no explanations — recall only.
+                {t("dashboard.recall.examNightBody")}
               </span>
             </Link>
           </section>

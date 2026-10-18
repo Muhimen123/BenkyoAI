@@ -5,6 +5,7 @@ import { useState } from "react";
 import { ChevronRight, Flag, RefreshCw, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { MasteryMeter, StatusDot } from "@/components/ui/MasteryMeter";
+import { useT } from "@/lib/i18n/LocaleProvider";
 import type { Roadmap, Topic } from "@/lib/types";
 import { cn, relativeTime } from "@/lib/utils";
 
@@ -20,6 +21,7 @@ export function RoadmapView({
   showAdjustment?: boolean;
   className?: string;
 }) {
+  const { t } = useT();
   const firstUnfinished =
     roadmap.topics.find((t) => t.status !== "mastered")?.id ?? roadmap.topics[0]?.id;
   const [open, setOpen] = useState<string[]>([openTopicId ?? firstUnfinished]);
@@ -35,8 +37,8 @@ export function RoadmapView({
         <p className="flex items-start gap-2 rounded-lg border border-gold-200 bg-gold-50 px-3.5 py-2.5 text-[13px] leading-snug text-gold-700">
           <RefreshCw className="mt-0.5 size-3.5 shrink-0" />
           <span>
-            Updated {relativeTime(roadmap.lastAdjustment.at)} based on your recent
-            answers. {roadmap.lastAdjustment.reason}
+            {t("roadmap.adjusted", { when: relativeTime(roadmap.lastAdjustment.at) })}{" "}
+            {roadmap.lastAdjustment.reason}
           </span>
         </p>
       )}
@@ -67,6 +69,7 @@ function TopicRow({
   expanded: boolean;
   onToggle: () => void;
 }) {
+  const { t, tp } = useT();
   return (
     <li className="border-b border-line last:border-0">
       <button
@@ -83,10 +86,10 @@ function TopicRow({
             <span className="text-[15px] font-medium text-ink">{topic.title}</span>
             {topic.isMilestone && (
               <Badge tone="gold" icon={<Flag className="size-2.5" />}>
-                milestone
+                {t("roadmap.milestone")}
               </Badge>
             )}
-            {topic.origin === "manual" && <Badge>yours</Badge>}
+            {topic.origin === "manual" && <Badge>{t("roadmap.yours")}</Badge>}
           </span>
           <span className="mt-0.5 block truncate text-[13px] text-ink-soft">
             {topic.summary}
@@ -128,14 +131,14 @@ function TopicRow({
                     </span>
                     {sub.isWeakPoint && (
                       <Badge tone="review" icon={<Sparkles className="size-2.5" />}>
-                        blended review
+                        {t("roadmap.blendedReview")}
                       </Badge>
                     )}
                   </span>
                   <span className="label-data mt-0.5 block text-ink-faint">
-                    {sub.estimatedMin} min
+                    {t("roadmap.minCount", { n: sub.estimatedMin })}
                     {sub.sessionIds.length > 0 &&
-                      ` · ${sub.sessionIds.length} session${sub.sessionIds.length > 1 ? "s" : ""}`}
+                      ` · ${tp("roadmap.sessionCount", sub.sessionIds.length, { count: sub.sessionIds.length })}`}
                   </span>
                 </span>
                 <MasteryMeter value={sub.mastery} status={sub.status} size="sm" showValue />
@@ -148,7 +151,7 @@ function TopicRow({
               href={`/roadmap/${topic.id}`}
               className="text-[13px] font-medium text-gold-700 underline decoration-gold-200 underline-offset-4 hover:decoration-gold-500"
             >
-              Open {topic.title}
+              {t("roadmap.openTopic", { title: topic.title })}
             </Link>
           </li>
         </ul>

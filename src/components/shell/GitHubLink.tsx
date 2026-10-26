@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n/LocaleProvider";
 
 /** Inline GitHub mark (Octocat silhouette) — no external dependency needed. */
 function GithubIcon({ className }: { className?: string }) {
@@ -21,6 +22,8 @@ function GithubIcon({ className }: { className?: string }) {
  * Desktop shows icon + "GitHub" label; mobile collapses to icon-only.
  */
 export function GitHubLink({ className }: { className?: string }) {
+  const { t } = useT();
+
   return (
     <a
       href="https://github.com/Muhimen123/BenkyoAI"
@@ -30,7 +33,7 @@ export function GitHubLink({ className }: { className?: string }) {
         "group inline-flex items-center gap-2 rounded-full border border-line bg-surface px-2.5 py-1 transition-colors hover:border-line-strong",
         className,
       )}
-      aria-label="View BenkyoAI on GitHub"
+      aria-label={t("shell.gitHub.aria")}
     >
       <GithubIcon className="text-ink-faint transition-colors group-hover:text-ink" />
       <span className="label-data hidden text-ink-soft transition-colors group-hover:text-ink sm:inline">

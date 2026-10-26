@@ -14,6 +14,12 @@ import { Field, Input, Textarea } from "@/components/ui/Field";
 import { Skeleton } from "@/components/ui/Feedback";
 import { MaterialInput } from "@/components/MaterialInput";
 import { getCalibrationQuestions } from "@/lib/api/roadmap";
+import {
+  CALIBRATION_OPTION_KEYS,
+  CALIBRATION_QUESTION_KEYS,
+} from "@/lib/i18n/calibrationMessages";
+import { useT } from "@/lib/i18n/LocaleProvider";
+import type { MessageKey } from "@/lib/i18n/t";
 import type { CalibrationAnswer, CalibrationQuestion, Purpose } from "@/lib/types";
 import { cn, daysUntil } from "@/lib/utils";
 
@@ -30,41 +36,41 @@ export function TopicStep({
   onNext: () => void;
   onBack?: () => void;
 }) {
+  const { t } = useT();
+
   return (
     <div className="space-y-7">
       <div className="space-y-2">
         <h2 className="text-[22px] leading-snug font-semibold tracking-tight text-ink sm:text-[26px]">
-          What do you want to learn?
+          {t("topic.heading")}
         </h2>
         <p className="text-[15px] leading-relaxed text-ink-soft">
-          Write it the way you'd say it out loud. A subject, a chapter, a skill,
-          a thing you keep failing questions on.
+          {t("topic.lede")}
         </p>
       </div>
 
       <Field
-        label="Your topic"
+        label={t("topic.fieldLabel")}
         htmlFor="topic"
-        hint="Specific beats broad: “SN1 vs SN2 mechanisms” gets you a sharper roadmap than “chemistry”."
+        hint={t("topic.fieldHint")}
       >
         <Textarea
           id="topic"
           rows={3}
           value={topic}
           autoFocus
-          placeholder="e.g. Organic chemistry — substitution and elimination mechanisms, for my end-of-term exam"
+          placeholder={t("topic.placeholder")}
           onChange={(e) => onTopicChange(e.target.value)}
         />
       </Field>
 
       <div className="space-y-2">
         <div className="flex items-baseline justify-between">
-          <p className="text-sm font-medium text-ink">Add your own material</p>
-          <span className="label-data text-ink-faint">optional</span>
+          <p className="text-sm font-medium text-ink">{t("topic.materialHeading")}</p>
+          <span className="label-data text-ink-faint">{t("common.optional")}</span>
         </div>
         <p className="text-[13px] text-ink-soft">
-          If you have slides or notes, the roadmap is built around them instead
-          of a generic outline.
+          {t("topic.materialHint")}
         </p>
         <MaterialInput compact />
       </div>
@@ -72,11 +78,11 @@ export function TopicStep({
       <div className="flex gap-2">
         {onBack && (
           <Button variant="ghost" onClick={onBack}>
-            Back
+            {t("common.back")}
           </Button>
         )}
         <Button size="lg" onClick={onNext} disabled={topic.trim().length < 3} className="flex-1">
-          Continue
+          {t("common.continue")}
         </Button>
       </div>
     </div>
@@ -98,6 +104,7 @@ export function CalibrationStep({
   onNext: () => void;
   onBack: () => void;
 }) {
+  const { t } = useT();
   const [questions, setQuestions] = useState<CalibrationQuestion[] | null>(null);
 
   useEffect(() => {
@@ -118,11 +125,10 @@ export function CalibrationStep({
     <div className="space-y-7">
       <div className="space-y-2">
         <h2 className="text-[22px] leading-snug font-semibold tracking-tight text-ink sm:text-[26px]">
-          Where are you starting from?
+          {t("calibration.heading")}
         </h2>
         <p className="text-[15px] leading-relaxed text-ink-soft">
-          Three questions. Answer honestly — overstating it just means the first
-          few sessions feel like a wall.
+          {t("calibration.lede")}
         </p>
       </div>
 
@@ -140,42 +146,48 @@ export function CalibrationStep({
         <div className="space-y-7">
           {questions.map((question, index) => {
             const chosen = answers.find((a) => a.questionId === question.id)?.optionId;
+            const promptKey = CALIBRATION_QUESTION_KEYS[question.id];
+            const prompt = promptKey ? t(promptKey, { topic }) : question.prompt;
+            const optionKeys = CALIBRATION_OPTION_KEYS[question.id];
             return (
               <fieldset key={question.id} className="space-y-2.5">
                 <legend className="mb-2.5 flex gap-2.5 text-[15px] font-medium text-ink">
                   <span className="label-data pt-1 text-ink-faint">0{index + 1}</span>
-                  {question.prompt}
+                  {prompt}
                 </legend>
-                {question.options.map((option) => (
-                  <label
-                    key={option.id}
-                    className={cn(
-                      "flex cursor-pointer items-center gap-3 rounded-lg border px-3.5 py-2.5 text-sm transition-colors",
-                      chosen === option.id
-                        ? "border-gold-500 bg-gold-50 text-ink"
-                        : "border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink",
-                    )}
-                  >
-                    <input
-                      type="radio"
-                      name={question.id}
-                      className="sr-only"
-                      checked={chosen === option.id}
-                      onChange={() =>
-                        onAnswer({ questionId: question.id, optionId: option.id })
-                      }
-                    />
-                    <span
+                {question.options.map((option, optionIndex) => {
+                  const optionKey = optionKeys?.[optionIndex];
+                  return (
+                    <label
+                      key={option.id}
                       className={cn(
-                        "size-3.5 shrink-0 rounded-full border-2 transition-colors",
+                        "flex cursor-pointer items-center gap-3 rounded-lg border px-3.5 py-2.5 text-sm transition-colors",
                         chosen === option.id
-                          ? "border-gold-500 bg-gold-500"
-                          : "border-line-strong",
+                          ? "border-gold-500 bg-gold-50 text-ink"
+                          : "border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink",
                       )}
-                    />
-                    {option.label}
-                  </label>
-                ))}
+                    >
+                      <input
+                        type="radio"
+                        name={question.id}
+                        className="sr-only"
+                        checked={chosen === option.id}
+                        onChange={() =>
+                          onAnswer({ questionId: question.id, optionId: option.id })
+                        }
+                      />
+                      <span
+                        className={cn(
+                          "size-3.5 shrink-0 rounded-full border-2 transition-colors",
+                          chosen === option.id
+                            ? "border-gold-500 bg-gold-500"
+                            : "border-line-strong",
+                        )}
+                      />
+                      {optionKey ? t(optionKey) : option.label}
+                    </label>
+                  );
+                })}
               </fieldset>
             );
           })}
@@ -184,10 +196,10 @@ export function CalibrationStep({
 
       <div className="flex gap-2">
         <Button variant="ghost" onClick={onBack}>
-          Back
+          {t("common.back")}
         </Button>
         <Button size="lg" onClick={onNext} disabled={!complete} className="flex-1">
-          Continue
+          {t("common.continue")}
         </Button>
       </div>
     </div>
@@ -198,33 +210,33 @@ export function CalibrationStep({
 
 const PURPOSES: {
   id: Purpose;
-  label: string;
+  labelKey: MessageKey;
   icon: typeof GraduationCap;
-  effect: string;
+  effectKey: MessageKey;
 }[] = [
   {
     id: "exam",
-    label: "An exam",
+    labelKey: "purpose.options.exam.label",
     icon: GraduationCap,
-    effect: "Short cycles, heavy recall, ruthless about what's examinable.",
+    effectKey: "purpose.options.exam.effect",
   },
   {
     id: "project",
-    label: "A project",
+    labelKey: "purpose.options.project.label",
     icon: Hammer,
-    effect: "Depth where you'll build, skimmed where you won't.",
+    effectKey: "purpose.options.project.effect",
   },
   {
     id: "job",
-    label: "Work or interviews",
+    labelKey: "purpose.options.job.label",
     icon: Briefcase,
-    effect: "Front-loads what colleagues and interviewers assume you know.",
+    effectKey: "purpose.options.job.effect",
   },
   {
     id: "curiosity",
-    label: "Curiosity",
+    labelKey: "purpose.options.curiosity.label",
     icon: Sparkles,
-    effect: "Unhurried, follows what you find interesting.",
+    effectKey: "purpose.options.curiosity.effect",
   },
 ];
 
@@ -245,22 +257,22 @@ export function PurposeStep({
   onSubmit: () => void;
   submitting: boolean;
 }) {
+  const { t, tp } = useT();
   const days = daysUntil(deadline);
 
   return (
     <div className="space-y-7">
       <div className="space-y-2">
         <h2 className="text-[22px] leading-snug font-semibold tracking-tight text-ink sm:text-[26px]">
-          Why this, why now?
+          {t("purpose.heading")}
         </h2>
         <p className="text-[15px] leading-relaxed text-ink-soft">
-          This changes the roadmap, not just the tone — how fast it moves, how
-          deep it goes, and what it's willing to skip.
+          {t("purpose.lede")}
         </p>
       </div>
 
       <div className="grid gap-2 sm:grid-cols-2">
-        {PURPOSES.map(({ id, label, icon: Icon, effect }) => (
+        {PURPOSES.map(({ id, labelKey, icon: Icon, effectKey }) => (
           <button
             key={id}
             type="button"
@@ -278,22 +290,22 @@ export function PurposeStep({
                 purpose === id ? "text-gold-700" : "text-ink-faint",
               )}
             />
-            <p className="text-sm font-medium text-ink">{label}</p>
-            <p className="mt-1 text-[13px] leading-snug text-ink-soft">{effect}</p>
+            <p className="text-sm font-medium text-ink">{t(labelKey)}</p>
+            <p className="mt-1 text-[13px] leading-snug text-ink-soft">{t(effectKey)}</p>
           </button>
         ))}
       </div>
 
       <Field
-        label="Deadline"
+        label={t("purpose.deadline.label")}
         htmlFor="deadline"
         optional
         hint={
           days === null
-            ? "If there's a date, the roadmap paces itself to hit it."
+            ? t("purpose.deadline.hintNone")
             : days > 0
-              ? `${days} days out. Pacing will be set to fit.`
-              : "That date has passed — pick another one."
+              ? tp("purpose.deadline.daysOut", days)
+              : t("purpose.deadline.hintPast")
         }
       >
         <div className="relative">
@@ -310,7 +322,7 @@ export function PurposeStep({
 
       <div className="flex gap-2">
         <Button variant="ghost" onClick={onBack} disabled={submitting}>
-          Back
+          {t("common.back")}
         </Button>
         <Button
           size="lg"
@@ -319,7 +331,7 @@ export function PurposeStep({
           loading={submitting}
           className="flex-1"
         >
-          Build my roadmap
+          {t("purpose.submit")}
         </Button>
       </div>
     </div>
@@ -329,13 +341,14 @@ export function PurposeStep({
 /* -------------------------------------------------------------- building */
 
 const BUILD_LINES = [
-  "Reading what you gave it",
-  "Placing you on the map",
-  "Ordering the steps",
-  "Setting the pace",
-];
+  "onboarding.building.reading",
+  "onboarding.building.placing",
+  "onboarding.building.ordering",
+  "onboarding.building.pacing",
+] as const;
 
 export function BuildingRoadmap({ topic }: { topic: string }) {
+  const { t } = useT();
   const [line, setLine] = useState(0);
 
   useEffect(() => {
@@ -349,7 +362,7 @@ export function BuildingRoadmap({ topic }: { topic: string }) {
   return (
     <div className="flex min-h-[50vh] flex-col justify-center space-y-6">
       <div className="space-y-2">
-        <p className="label-data text-gold-700">Building</p>
+        <p className="label-data text-gold-700">{t("onboarding.building.eyebrow")}</p>
         <h2 className="text-[22px] leading-snug font-semibold tracking-tight text-ink sm:text-[26px]">
           {topic}
         </h2>
@@ -370,7 +383,7 @@ export function BuildingRoadmap({ topic }: { topic: string }) {
             ) : (
               <span className="size-1.5 rounded-full bg-line-strong" />
             )}
-            {text}
+            {t(text)}
           </li>
         ))}
       </ul>

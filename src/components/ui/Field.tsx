@@ -1,4 +1,7 @@
+"use client";
+
 import type { InputHTMLAttributes, ReactNode, TextareaHTMLAttributes } from "react";
+import { useT } from "@/lib/i18n/LocaleProvider";
 import { cn } from "@/lib/utils";
 
 export function Field({
@@ -16,13 +19,17 @@ export function Field({
   children: ReactNode;
   optional?: boolean;
 }) {
+  const { t } = useT();
+
   return (
     <div className="space-y-2">
       <div className="flex items-baseline justify-between gap-3">
         <label htmlFor={htmlFor} className="text-sm font-medium text-ink">
           {label}
         </label>
-        {optional && <span className="label-data text-ink-faint">optional</span>}
+        {optional && (
+          <span className="label-data text-ink-faint">{t("common.optional")}</span>
+        )}
       </div>
       {children}
       {error ? (

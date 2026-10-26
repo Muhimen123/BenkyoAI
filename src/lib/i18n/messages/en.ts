@@ -318,12 +318,6 @@ export const en = {
         "Ticks show mastery. Your answers set where the first ones start.",
       purpose: "Purpose sets the pace. A deadline tightens it.",
     },
-    memory: {
-      title: "One mistake, over three sessions",
-      missed: "missed",
-      blended: "blended back in",
-      held: "held, unaided",
-    },
     brand: {
       tagline: "Study smarter",
     },

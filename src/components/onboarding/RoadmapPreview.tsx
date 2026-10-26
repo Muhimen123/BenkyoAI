@@ -204,60 +204,6 @@ export function RoadmapPreview({
 }
 
 /**
- * The second half of the promise, shown as a small timeline: a missed item
- * doesn't go in a review pile, it comes back inside later lessons until it holds.
- */
-export function MemoryStrip({ active }: { active: boolean }) {
-  const { t } = useT();
-  const stages = [
-    { labelKey: "preview.memory.missed", tone: "clay" as const },
-    { labelKey: "preview.memory.blended", tone: "maize" as const },
-    { labelKey: "preview.memory.held", tone: "sage" as const },
-  ] as const;
-
-  const TONE = {
-    clay: "border-clay-100 bg-clay-50 text-clay-700",
-    maize: "border-maize-100 bg-maize-50 text-maize-700",
-    sage: "border-sage-100 bg-sage-50 text-sage-700",
-  };
-
-  return (
-    <div className="mt-6 border-t border-line pt-5">
-      <p className="label-data text-ink-faint">{t("preview.memory.title")}</p>
-      <ol className="mt-3 flex items-center gap-1.5">
-        {stages.map((stage, i) => (
-          <li key={stage.labelKey} className="flex min-w-0 items-center gap-1.5">
-            <span
-              className={cn(
-                "label-data inline-flex items-center gap-1.5 rounded-full border px-2 py-1 transition-all duration-700",
-                TONE[stage.tone],
-                active ? "opacity-100" : "opacity-40",
-              )}
-              style={{ transitionDelay: `${i * 220}ms` }}
-            >
-              <span
-                className={cn(
-                  "size-1 rounded-full",
-                  stage.tone === "clay"
-                    ? "bg-clay-500"
-                    : stage.tone === "maize"
-                      ? "bg-maize-700"
-                      : "bg-sage-500",
-                )}
-              />
-              <span className="truncate">{t(stage.labelKey)}</span>
-            </span>
-            {i < stages.length - 1 && (
-              <span className="h-px w-3 shrink-0 bg-line-strong" aria-hidden />
-            )}
-          </li>
-        ))}
-      </ol>
-    </div>
-  );
-}
-
-/**
  * 3D brand card shown on onboarding step 0.
  * Inspired by Uiverse.io/Smit-Prajapati — adapted to BenkyoAI's gold/green palette.
  */

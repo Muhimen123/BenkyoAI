@@ -7,7 +7,7 @@ import { KeyRound } from "lucide-react";
 import { GitHubLink } from "@/components/shell/GitHubLink";
 import { LanguageToggle } from "@/components/shell/LanguageToggle";
 import { ByokSetup } from "@/components/byok/ByokSetup";
-import { MemoryStrip, RoadmapPreview } from "@/components/onboarding/RoadmapPreview";
+import { RoadmapPreview } from "@/components/onboarding/RoadmapPreview";
 import {
   BuildingRoadmap,
   CalibrationStep,
@@ -279,7 +279,6 @@ function OnboardingFlow() {
                 deadline={draft.deadline}
               />
             )}
-            {canShow && <MemoryStrip active={step >= 1} />}
           </div>
         </div>
       </div>

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { KeyRound } from "lucide-react";
 
 import { GitHubLink } from "@/components/shell/GitHubLink";
+import { LanguageToggle } from "@/components/shell/LanguageToggle";
 import { ByokSetup } from "@/components/byok/ByokSetup";
 import { MemoryStrip, RoadmapPreview } from "@/components/onboarding/RoadmapPreview";
 import {
@@ -21,15 +22,17 @@ import {
 } from "@/components/onboarding/OnboardingLoaders";
 import { generateRoadmap } from "@/lib/api/roadmap";
 import { summarizeMaterial } from "@/lib/api/summarize";
+import { useT } from "@/lib/i18n/LocaleProvider";
 import { materialText } from "@/lib/rag";
+import { cn } from "@/lib/utils";
 import { useStudyStore } from "@/store/useStudyStore";
 
 const STEPS = [
-  { id: "key", label: "Connect a key" },
-  { id: "topic", label: "Your topic" },
-  { id: "level", label: "Your level" },
-  { id: "purpose", label: "Your reason" },
-];
+  { id: "key", labelKey: "onboarding.steps.key" },
+  { id: "topic", labelKey: "onboarding.steps.topic" },
+  { id: "level", labelKey: "onboarding.steps.level" },
+  { id: "purpose", labelKey: "onboarding.steps.purpose" },
+] as const;
 
 export default function OnboardingPage() {
   return (
@@ -42,6 +45,7 @@ export default function OnboardingPage() {
 function OnboardingFlow() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { locale, t } = useT();
   // `?new=1` (from "Add another roadmap" on the dashboard) means: run the
   // flow again even though a roadmap already exists, and don't bounce back.
   const startingNew = searchParams.get("new") === "1";
@@ -111,7 +115,7 @@ function OnboardingFlow() {
       router.push("/dashboard");
     } catch {
       setBuilding(false);
-      setError("The roadmap didn't come back. Check your key in step one and try again.");
+      setError(t("onboarding.error"));
     }
   }
 
@@ -120,7 +124,11 @@ function OnboardingFlow() {
     if (step === 0)
       return (
         <ByokSetup
-          heading={reconnecting ? "Reconnect an AI key" : "First, connect an AI key"}
+          heading={
+            reconnecting
+              ? t("onboarding.reconnect.heading")
+              : t("onboarding.reconnect.firstHeading")
+          }
           onConnected={() => (reconnecting ? router.replace("/dashboard") : setRawStep(1))}
         />
       );
@@ -205,28 +213,36 @@ function OnboardingFlow() {
       <div className="relative mx-auto max-w-6xl px-5 pt-10 pb-16 sm:px-8 sm:pt-14 lg:pt-20">
         <header className="flex items-center justify-between gap-4">
           <GitHubLink />
-          <p className="label-data hidden text-ink-faint sm:block">
-            No accounts · Runs on your key
-          </p>
+          <div className="flex items-center gap-3">
+            <p className="label-data hidden text-ink-faint sm:block">
+              {t("onboarding.header.noAccounts")}
+            </p>
+            <LanguageToggle />
+          </div>
         </header>
 
         <div className="mt-10 grid gap-x-16 gap-y-8 border-b border-line pb-10 lg:mt-14 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:pb-14">
           <div>
-            <h1 className="text-[34px] leading-[1.05] font-semibold tracking-tight text-ink sm:text-[46px] lg:text-[54px]">
-              Study that
-              <br />
-              remembers what
-              <br />
-              <span className="relative inline-block">
-                you got wrong
+            <h1
+              aria-label={t("onboarding.hero.headline")}
+              className={cn(
+                "text-[34px] font-semibold tracking-tight text-ink sm:text-[46px] lg:text-[54px]",
+                // Bangla matras need more vertical room than the tight Latin leading.
+                locale === "bn" ? "leading-[1.22]" : "leading-[1.05]",
+              )}
+            >
+              <span aria-hidden>{t("onboarding.hero.line1")}</span>
+              <br aria-hidden />
+              <span aria-hidden>{t("onboarding.hero.line2")}</span>
+              <br aria-hidden />
+              <span aria-hidden className="relative inline-block">
+                {t("onboarding.hero.line3")}
                 <span className="absolute inset-x-0 -bottom-1 h-2 -skew-x-6 bg-maize-100" />
               </span>
-              .
+              <span aria-hidden>{t("onboarding.hero.fullStop")}</span>
             </h1>
             <p className="mt-6 max-w-md text-[16px] leading-relaxed text-ink-soft">
-              A roadmap built around where you actually are. Practice at every
-              step. Old mistakes folded quietly back in until they stop being
-              mistakes.
+              {t("onboarding.hero.lede")}
             </p>
 
             {/* the four moves, as a typed sequence rather than a card grid */}
@@ -240,7 +256,7 @@ function OnboardingFlow() {
                         : "label-data rounded-md px-1.5 py-0.5 text-ink-faint transition-colors"
                     }
                   >
-                    {s.label}
+                    {t(s.labelKey)}
                   </span>
                   {i < flowSteps.length - 1 && (
                     <span className="text-ink-faint" aria-hidden>
@@ -280,9 +296,7 @@ function OnboardingFlow() {
                   {reconnecting && step === 0 && (
                     <p className="mb-6 flex items-start gap-2.5 rounded-lg border border-gold-200 bg-gold-50 px-4 py-3 text-[13px] leading-snug text-gold-700">
                       <KeyRound className="mt-0.5 size-3.5 shrink-0" />
-                      Your key was removed. Your roadmap, materials and progress are
-                      untouched — connect a key and you&apos;ll land straight back on
-                      them.
+                      {t("onboarding.reconnect.note")}
                     </p>
                   )}
                   {error && (
@@ -302,8 +316,10 @@ function OnboardingFlow() {
               <div className="rounded-2xl border border-sage-100 bg-sage-50 p-6 sm:p-8 shadow-sm h-fit">
                 <div className="sticky top-24">
                   <p className="label-data text-sage-600 font-semibold">
-                    Step {String(flowIndex + 1).padStart(2, "0")} of{" "}
-                    {String(flowSteps.length).padStart(2, "0")}
+                    {t("onboarding.stepCounter", {
+                      index: String(flowIndex + 1).padStart(2, "0"),
+                      total: String(flowSteps.length).padStart(2, "0"),
+                    })}
                   </p>
 
                   <div className="-mt-6 flex items-center gap-40">
@@ -322,7 +338,7 @@ function OnboardingFlow() {
                   </div>
 
                   <p className="-mt-4 max-w-[22ch] text-[13px] leading-snug font-medium text-sage-700">
-                    {flowSteps[flowIndex]?.label}
+                    {t(flowSteps[flowIndex]?.labelKey ?? "onboarding.steps.key")}
                   </p>
                 </div>
               </div>
@@ -330,8 +346,7 @@ function OnboardingFlow() {
           </main>
         </div>
         <footer className="mt-4 px-5 pb-8 text-center text-[11px] text-ink-faint sm:px-8">
-          © {new Date().getFullYear()} BenkyoAI — copyrighted by Al Muhimen, Nishat
-          Tasnim Meem, Fariha Tasnim Amir
+          {t("common.footerCopyright", { year: new Date().getFullYear() })}
         </footer>
       </div>
     </div>

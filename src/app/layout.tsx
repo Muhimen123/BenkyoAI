@@ -1,5 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import { DM_Serif_Display, IBM_Plex_Mono, Inter } from "next/font/google";
+import {
+  DM_Serif_Display,
+  IBM_Plex_Mono,
+  Inter,
+  Noto_Sans_Bengali,
+} from "next/font/google";
+import { LocaleProvider } from "@/lib/i18n/LocaleProvider";
 import "./globals.css";
 
 const display = DM_Serif_Display({
@@ -22,6 +28,14 @@ const data = IBM_Plex_Mono({
   display: "swap",
 });
 
+// Bangla glyphs aren't in the Latin fonts above, so the UI stack falls through
+// to this one. Self-hosted by next/font — no request to Google at runtime.
+const bengali = Noto_Sans_Bengali({
+  subsets: ["bengali"],
+  variable: "--font-bengali",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "BenkyoAI — study that remembers what you got wrong",
   description:
@@ -38,11 +52,12 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
-      <body
-        className={`${ui.variable} ${display.variable} ${data.variable} antialiased`}
-      >
-        {children}
+    <html
+      lang="en"
+      className={`${ui.variable} ${display.variable} ${data.variable} ${bengali.variable}`}
+    >
+      <body className="antialiased">
+        <LocaleProvider>{children}</LocaleProvider>
       </body>
     </html>
   );

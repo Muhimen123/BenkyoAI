@@ -4,10 +4,12 @@ import Link from "next/link";
 import { KeyRound } from "lucide-react";
 import { useStudyStore } from "@/store/useStudyStore";
 import { getProvider } from "@/lib/api/providers";
+import { useT } from "@/lib/i18n/LocaleProvider";
 import { cn } from "@/lib/utils";
 
 /** Always-visible answer to "is my key working right now". */
 export function KeyStatus({ className }: { className?: string }) {
+  const { t } = useT();
   const connection = useStudyStore((s) => s.connection);
   const hydrated = useStudyStore((s) => s.hydrated);
 
@@ -20,9 +22,9 @@ export function KeyStatus({ className }: { className?: string }) {
     <Link
       href="/settings"
       aria-label={
-        connection
-          ? `AI key connected to ${provider}. Manage it in settings.`
-          : "No AI key connected. Connect one in settings."
+        provider
+          ? t("shell.keyStatus.ariaConnected", { provider })
+          : t("shell.keyStatus.ariaNone")
       }
       className={cn(
         "group inline-flex items-center gap-2 rounded-full border px-2.5 py-1 transition-colors",
@@ -49,7 +51,7 @@ export function KeyStatus({ className }: { className?: string }) {
           invalid ? "text-clay-700" : "text-ink-soft",
         )}
       >
-        {connection ? provider : "No key"}
+        {connection ? provider : t("shell.keyStatus.noKey")}
       </span>
       <KeyRound
         className={cn(

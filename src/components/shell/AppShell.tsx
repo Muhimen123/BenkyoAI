@@ -5,17 +5,19 @@ import { usePathname } from "next/navigation";
 import { type ReactNode } from "react";
 import { Compass, KeyRound, Library, Settings2 } from "lucide-react";
 import { useStudyStore } from "@/store/useStudyStore";
+import { useT } from "@/lib/i18n/LocaleProvider";
 import { cn } from "@/lib/utils";
 import { Wordmark } from "./Wordmark";
 import { KeyStatus } from "./KeyStatus";
 import { GitHubLink } from "./GitHubLink";
+import { LanguageToggle } from "./LanguageToggle";
 import { ByokSetup } from "@/components/byok/ByokSetup";
 
 const NAV = [
-  { href: "/dashboard", label: "Today", icon: Compass },
-  { href: "/vault", label: "Vault", icon: Library },
-  { href: "/settings", label: "Settings", icon: Settings2 },
-];
+  { href: "/dashboard", labelKey: "shell.nav.today", icon: Compass },
+  { href: "/vault", labelKey: "shell.nav.vault", icon: Library },
+  { href: "/settings", labelKey: "shell.nav.settings", icon: Settings2 },
+] as const;
 
 export function AppShell({
   children,
@@ -27,6 +29,7 @@ export function AppShell({
   width?: "default" | "wide";
   bare?: boolean;
 }) {
+  const { t } = useT();
   const pathname = usePathname();
   const hydrated = useStudyStore((s) => s.hydrated);
   const connection = useStudyStore((s) => s.connection);
@@ -66,7 +69,7 @@ export function AppShell({
                       : "text-ink-soft hover:text-ink",
                   )}
                 >
-                  {item.label}
+                  {t(item.labelKey)}
                 </Link>
               );
             })}
@@ -74,6 +77,7 @@ export function AppShell({
           <div className="ml-auto sm:ml-0 flex items-center gap-2">
             <GitHubLink />
             <KeyStatus />
+            <LanguageToggle />
           </div>
         </div>
       </header>
@@ -88,8 +92,7 @@ export function AppShell({
         {gated ? <KeyGate /> : children}
 
         <footer className="mx-auto mt-10 max-w-5xl pb-24 text-center text-[11px] text-ink-faint sm:pb-6">
-          © {new Date().getFullYear()} BenkyoAI — copyrighted by Al Muhimen, Nishat
-          Tasnim Meem, Fariha Tasnim Amir
+          {t("common.footerCopyright", { year: new Date().getFullYear() })}
         </footer>
       </main>
 
@@ -108,7 +111,7 @@ export function AppShell({
                 )}
               >
                 <Icon className={cn("size-5", active && "text-gold-500")} />
-                {item.label}
+                {t(item.labelKey)}
               </Link>
             );
           })}
@@ -149,15 +152,18 @@ export function PageHead({
 
 /** Shown in place of any screen's content while no key is connected. */
 function KeyGate() {
+  const { t } = useT();
+
   return (
     <div className="mx-auto max-w-xl">
       <p className="mb-6 flex items-start gap-2.5 rounded-lg border border-gold-200 bg-gold-50 px-4 py-3 text-[13px] leading-snug text-gold-700">
         <KeyRound className="mt-0.5 size-3.5 shrink-0" />
-        No key connected, so nothing can run. Your roadmap, materials and
-        progress are untouched — connect a key and you&apos;ll pick up exactly
-        where you were.
+        {t("shell.keyGate.body")}
       </p>
-      <ByokSetup heading="Connect an AI key" submitLabel="Connect key" />
+      <ByokSetup
+        heading={t("shell.keyGate.heading")}
+        submitLabel={t("byok.submit")}
+      />
     </div>
   );
 }

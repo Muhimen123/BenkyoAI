@@ -7,6 +7,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { VAULT_STORAGE_KEY, maskKey } from "@/lib/byokVault";
+import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/types";
 import { clamp, uid } from "@/lib/utils";
 import { gradeFor, isDue, schedule } from "@/lib/srs";
 import type {
@@ -51,6 +52,8 @@ interface StudyState {
   draft: OnboardingDraft;
   /** Token usage of the learner's own key, newest first. */
   usage: UsageEntry[];
+  /** UI language. Not vault data — survives a vault reset. */
+  locale: Locale;
   hydrated: boolean;
 
   connectKey: (provider: ProviderId, apiKey: string, model?: string) => void;
@@ -59,6 +62,7 @@ interface StudyState {
 
   setDepth: (depth: Depth) => void;
   setExamNight: (on: boolean) => void;
+  setLocale: (locale: Locale) => void;
 
   addMaterial: (material: Omit<Material, "id" | "addedAt" | "status">) => Material;
   updateMaterial: (id: string, patch: Partial<Material>) => void;
@@ -144,6 +148,7 @@ export const useStudyStore = create<StudyState>()(
       examNight: false,
       draft: emptyDraft,
       usage: [],
+      locale: DEFAULT_LOCALE,
       hydrated: false,
 
       connectKey: (provider, apiKey, model) =>
@@ -176,6 +181,7 @@ export const useStudyStore = create<StudyState>()(
 
       setDepth: (depth) => set({ depth }),
       setExamNight: (examNight) => set({ examNight }),
+      setLocale: (locale) => set({ locale }),
 
       addMaterial: (material) => {
         const created: Material = {

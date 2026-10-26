@@ -6,9 +6,9 @@
    hairlines, badges and active states — never as full-page fills.
 ------------------------------------------------------------------ */
 @theme {
-  --font-sans: var(--font-ui), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-sans: var(--font-ui), var(--font-bengali), ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-wordmark: var(--font-display), Georgia, "Times New Roman", serif;
-  --font-mono: var(--font-data), ui-monospace, "SFMono-Regular", monospace;
+  --font-mono: var(--font-data), var(--font-bengali), ui-monospace, "SFMono-Regular", monospace;
 
   /* surfaces */
   --color-paper: #fdfcfa;

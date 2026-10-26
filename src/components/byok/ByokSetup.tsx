@@ -16,6 +16,11 @@ import { Field, Input } from "@/components/ui/Field";
 import { Segmented } from "@/components/ui/Segmented";
 import { PROVIDERS, getProvider } from "@/lib/api/providers";
 import { validateApiKey } from "@/lib/api/byok";
+import { useT } from "@/lib/i18n/LocaleProvider";
+import {
+  PROVIDER_FREE_TIER_KEYS,
+  PROVIDER_STEP_KEYS,
+} from "@/lib/i18n/providerMessages";
 import { useStudyStore } from "@/store/useStudyStore";
 import type { KeyValidationResult, ProviderId } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -23,32 +28,33 @@ import { cn } from "@/lib/utils";
 const FACTS = [
   {
     icon: Laptop,
-    title: "Stays on this device",
-    body: "The key is saved in this browser only. BenkyoAI has no server that holds it.",
+    titleKey: "byok.facts.device.title",
+    bodyKey: "byok.facts.device.body",
   },
   {
     icon: Wallet,
-    title: "Your usage, your cost",
-    body: "Requests are billed to your provider account, at their rates. No subscription here.",
+    titleKey: "byok.facts.usage.title",
+    bodyKey: "byok.facts.usage.body",
   },
   {
     icon: ShieldCheck,
-    title: "Revoke whenever",
-    body: "Delete the key at the provider and it stops working immediately, everywhere.",
+    titleKey: "byok.facts.revoke.title",
+    bodyKey: "byok.facts.revoke.body",
   },
-];
+] as const;
 
 export function ByokSetup({
   onConnected,
-  heading = "Connect your AI key",
+  heading,
   showExplainer = true,
-  submitLabel = "Connect key",
+  submitLabel,
 }: {
   onConnected?: () => void;
   heading?: string;
   showExplainer?: boolean;
   submitLabel?: string;
 }) {
+  const { t } = useT();
   const connectKey = useStudyStore((s) => s.connectKey);
   const [provider, setProvider] = useState<ProviderId>("google");
   const [key, setKey] = useState("");
@@ -59,6 +65,9 @@ export function ByokSetup({
 
   const info = getProvider(provider);
   const connected = result?.valid === true;
+  const title = heading ?? t("byok.defaultHeading");
+  const submit = submitLabel ?? t("byok.submit");
+  const keyPrefix = provider === "google" ? "AIza… or AQ…" : `${info.keyPrefix}…`;
 
   async function handleValidate() {
     setChecking(true);
@@ -76,7 +85,7 @@ export function ByokSetup({
       setResult({
         valid: false,
         provider,
-        message: "Couldn't reach the provider. Check your connection and try again.",
+        message: t("byok.failure"),
       });
     } finally {
       setChecking(false);
@@ -89,21 +98,18 @@ export function ByokSetup({
         <div className="space-y-5">
           <div className="max-w-xl space-y-3">
             <h2 className="text-[22px] leading-snug font-semibold tracking-tight text-ink sm:text-[26px]">
-              {heading}
+              {title}
             </h2>
             <p className="text-[15px] leading-relaxed text-ink-soft">
-              BenkyoAI has no accounts and nothing to sign up for. It runs on an
-              API key — a long string you get from an AI provider that lets this
-              app ask questions on your behalf. Getting one takes about a minute
-              and most providers start you off free.
+              {t("byok.intro")}
             </p>
           </div>
           <ul className="grid gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-3">
-            {FACTS.map(({ icon: Icon, title, body }) => (
-              <li key={title} className="bg-surface p-4">
+            {FACTS.map(({ icon: Icon, titleKey, bodyKey }) => (
+              <li key={titleKey} className="bg-surface p-4">
                 <Icon className="mb-2.5 size-4 text-gold-500" />
-                <p className="text-sm font-medium text-ink">{title}</p>
-                <p className="mt-1 text-[13px] leading-snug text-ink-soft">{body}</p>
+                <p className="text-sm font-medium text-ink">{t(titleKey)}</p>
+                <p className="mt-1 text-[13px] leading-snug text-ink-soft">{t(bodyKey)}</p>
               </li>
             ))}
           </ul>
@@ -112,9 +118,9 @@ export function ByokSetup({
 
       <div className="space-y-4">
         <div className="space-y-2">
-          <p className="text-sm font-medium text-ink">Pick a provider</p>
+          <p className="text-sm font-medium text-ink">{t("byok.pickProvider")}</p>
           <Segmented
-            ariaLabel="AI provider"
+            ariaLabel={t("byok.providerAria")}
             full
             options={PROVIDERS.map((p) => ({ value: p.id, label: p.name }))}
             value={provider}
@@ -124,19 +130,21 @@ export function ByokSetup({
               setResult(null);
             }}
           />
-          <p className="text-[13px] text-ink-soft">{info.freeTierNote}</p>
+          <p className="text-[13px] text-ink-soft">
+            {t(PROVIDER_FREE_TIER_KEYS[provider])}
+          </p>
         </div>
 
         <ol className="space-y-0 overflow-hidden rounded-xl border border-line bg-surface">
-          {info.steps.map((step, i) => (
+          {PROVIDER_STEP_KEYS[provider].map((stepKey, i) => (
             <li
-              key={step}
+              key={stepKey}
               className="flex gap-3 border-b border-line px-4 py-3 last:border-0"
             >
               <span className="label-data mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-gold-50 text-gold-700">
                 {i + 1}
               </span>
-              <span className="text-sm leading-relaxed text-ink-soft">{step}</span>
+              <span className="text-sm leading-relaxed text-ink-soft">{t(stepKey)}</span>
             </li>
           ))}
         </ol>
@@ -147,7 +155,7 @@ export function ByokSetup({
           rel="noreferrer"
           className="inline-flex items-center gap-1.5 text-sm font-medium text-gold-700 underline decoration-gold-200 underline-offset-4 transition-colors hover:decoration-gold-500"
         >
-          Open {info.name}
+          {t("byok.openProvider", { name: info.name })}
           <ArrowUpRight className="size-3.5" />
         </a>
       </div>
@@ -157,34 +165,31 @@ export function ByokSetup({
           <CheckCircle2 className="size-5 text-sage-700" />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-ink">
-              {getProvider(result.provider).name} connected
+              {t("byok.connected.title", { name: getProvider(result.provider).name })}
             </p>
             <p className="text-[13px] text-ink-soft">
-              Saved to this browser. You won't see the key again — replace it any
-              time in Settings.
+              {t("byok.connected.body")}
             </p>
           </div>
           {onConnected && (
             <Button onClick={onConnected} size="sm">
-              Continue
+              {t("byok.continue")}
             </Button>
           )}
         </div>
       ) : (
         <div className="space-y-3">
           <Field
-            label={info.credentialLabel ?? "Paste your key"}
+            label={
+              info.credentialLabel
+                ? t("providers.ollama.credentialLabel")
+                : t("byok.keyField.paste")
+            }
             htmlFor="byok-key"
             hint={
-              result && !result.valid ? undefined : (
-                <>
-                  Starts with{" "}
-                  <span className="font-mono">
-                    {provider === "google" ? "AIza… or AQ…" : info.keyPrefix}
-                  </span>
-                  . Checked as soon as you connect.
-                </>
-              )
+              result && !result.valid
+                ? undefined
+                : t("byok.keyField.hint", { prefix: keyPrefix })
             }
             error={result && !result.valid ? result.message : undefined}
           >
@@ -217,7 +222,7 @@ export function ByokSetup({
               <button
                 type="button"
                 onClick={() => setReveal((r) => !r)}
-                aria-label={reveal ? "Hide key" : "Show key"}
+                aria-label={reveal ? t("byok.keyField.hide") : t("byok.keyField.show")}
                 className="absolute top-1/2 right-2 -translate-y-1/2 rounded-md p-1.5 text-ink-faint transition-colors hover:bg-sunk hover:text-ink"
               >
                 {reveal ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
@@ -227,9 +232,9 @@ export function ByokSetup({
 
           {info.defaultModel && (
             <Field
-              label="Model"
+              label={t("byok.model.label")}
               htmlFor="byok-model"
-              hint={<>Leave blank for <span className="font-mono">{info.defaultModel}</span>.</>}
+              hint={t("byok.model.hint", { model: info.defaultModel })}
             >
               <Input
                 id="byok-model"
@@ -249,7 +254,7 @@ export function ByokSetup({
           {result && !result.valid && (
             <p className="flex items-start gap-2 text-[13px] text-clay-700">
               <XCircle className="mt-px size-3.5 shrink-0" />
-              Nothing was saved. Fix the key above and try again.
+              {t("byok.notSaved")}
             </p>
           )}
 
@@ -260,7 +265,7 @@ export function ByokSetup({
             size="lg"
             full
           >
-            {checking ? "Checking with " + info.name + "…" : submitLabel}
+            {checking ? t("byok.checking", { name: info.name }) : submit}
           </Button>
         </div>
       )}

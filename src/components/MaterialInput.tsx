@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Input, Textarea } from "@/components/ui/Field";
 import { useStudyStore } from "@/store/useStudyStore";
+import { useT, type TFn, type TpFn } from "@/lib/i18n/LocaleProvider";
 import type { Material, MaterialKind } from "@/lib/types";
 import { cn, relativeTime } from "@/lib/utils";
 import { ingestFile, ingestSections } from "@/lib/rag";
@@ -40,12 +41,14 @@ function kindFor(name: string): MaterialKind {
   return "note";
 }
 
-function indexLabel(material: Material) {
-  if (material.status === "processing") return "indexing…";
-  if (material.passages === undefined) return "not indexed";
-  if (material.passages === 0) return "stored, not searchable";
-  const count = `${material.passages} passage${material.passages === 1 ? "" : "s"}`;
-  return `${count} · ${material.semantic ? "semantic + keyword" : "keyword"} search`;
+function indexLabel(material: Material, t: TFn, tp: TpFn) {
+  if (material.status === "processing") return t("material.status.indexing");
+  if (material.passages === undefined) return t("material.status.notIndexed");
+  if (material.passages === 0) return t("material.status.storedOnly");
+  const kind = material.semantic
+    ? t("material.status.semantic")
+    : t("material.status.keyword");
+  return tp("material.status.indexed", material.passages, { kind });
 }
 
 function sizeLabel(bytes: number) {
@@ -61,6 +64,7 @@ export function MaterialInput({
   compact?: boolean;
   className?: string;
 }) {
+  const { t, tp } = useT();
   const materials = useStudyStore((s) => s.materials);
   const addMaterial = useStudyStore((s) => s.addMaterial);
   const removeMaterial = useStudyStore((s) => s.removeMaterial);
@@ -103,9 +107,9 @@ export function MaterialInput({
     const text = notes.trim();
     if (!text) return;
     const material = addMaterial({
-      name: text.split("\n")[0].slice(0, 60) || "Pasted notes",
+      name: text.split("\n")[0].slice(0, 60) || t("material.pastedNotes"),
       kind: "note",
-      sizeLabel: `${text.split(/\s+/).length} words`,
+      sizeLabel: t("material.words", { count: text.split(/\s+/).length }),
       linkedTopicIds: [],
     });
     index(material.id, () => ingestSections(material, [{ location: "notes", text }]));
@@ -117,7 +121,7 @@ export function MaterialInput({
   function addVideo() {
     const url = videoUrl.trim();
     if (!youtubeVideoId(url)) {
-      setVideoError("That doesn't look like a YouTube link.");
+      setVideoError(t("material.videoInvalid"));
       return;
     }
     setVideoError(null);
@@ -130,11 +134,14 @@ export function MaterialInput({
       });
       const data = (await res.json()) as { title?: string; sections?: Section[]; message?: string };
       if (!res.ok || !data.sections) {
-        setVideoError(data.message ?? "Couldn't read that video's captions.");
+        setVideoError(data.message ?? t("material.videoCaptions"));
         throw new Error(data.message);
       }
       const name = data.title ?? url;
-      updateMaterial(material.id, { name, sizeLabel: `YouTube · ${data.sections.length} timestamped parts` });
+      updateMaterial(material.id, {
+        name,
+        sizeLabel: t("material.youtubeParts", { count: data.sections.length }),
+      });
       return ingestSections({ id: material.id, name }, data.sections);
     });
     setVideoUrl("");
@@ -163,18 +170,17 @@ export function MaterialInput({
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <Paperclip className="size-4 text-gold-500" />
           <p className="min-w-56 flex-1 text-sm text-ink-soft">
-            Slides, PDFs, photos of notes, lecture recordings — drop them here or
-            add them one at a time.
+            {t("material.dropHint")}
           </p>
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="secondary" onClick={() => fileRef.current?.click()}>
-              Add material
+              {t("material.add")}
             </Button>
             <Button size="sm" variant="ghost" onClick={() => setShowNotes((v) => !v)}>
-              Paste notes
+              {t("material.pasteNotes")}
             </Button>
             <Button size="sm" variant="ghost" onClick={() => setShowVideo((v) => !v)}>
-              YouTube link
+              {t("material.youtube")}
             </Button>
           </div>
         </div>
@@ -192,21 +198,21 @@ export function MaterialInput({
           <div className="animate-rise mt-3 space-y-2">
             <Input
               value={videoUrl}
-              placeholder="https://www.youtube.com/watch?v=…"
+              placeholder={t("material.videoPlaceholder")}
               onChange={(e) => setVideoUrl(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && videoUrl.trim()) addVideo();
               }}
             />
             <p className="text-[13px] text-ink-faint">
-              BenkyoAI reads the video&apos;s captions and cites them by timestamp.
+              {t("material.videoHint")}
             </p>
             <div className="flex justify-end gap-2">
               <Button size="sm" variant="ghost" onClick={() => setShowVideo(false)}>
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button size="sm" onClick={addVideo} disabled={!videoUrl.trim()}>
-                Add video
+                {t("material.addVideo")}
               </Button>
             </div>
           </div>
@@ -217,15 +223,15 @@ export function MaterialInput({
             <Textarea
               rows={4}
               value={notes}
-              placeholder="Paste a syllabus, lecture notes, a problem set…"
+              placeholder={t("material.notesPlaceholder")}
               onChange={(e) => setNotes(e.target.value)}
             />
             <div className="flex justify-end gap-2">
               <Button size="sm" variant="ghost" onClick={() => setShowNotes(false)}>
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button size="sm" onClick={addNotes} disabled={!notes.trim()}>
-                Add notes
+                {t("material.addNotes")}
               </Button>
             </div>
           </div>
@@ -244,13 +250,13 @@ export function MaterialInput({
                   <p className="label-data text-ink-faint">
                     {material.kind} · {material.sizeLabel} · {relativeTime(material.addedAt)}
                     {" · "}
-                    {indexLabel(material)}
+                    {indexLabel(material, t, tp)}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => remove(material.id)}
-                  aria-label={`Remove ${material.name}`}
+                  aria-label={t("material.removeAria", { name: material.name })}
                   className="rounded-md p-1.5 text-ink-faint opacity-0 transition-opacity group-hover:opacity-100 hover:bg-sunk hover:text-clay-700 focus-visible:opacity-100"
                 >
                   <Trash2 className="size-4" />

@@ -1,8 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import { useState } from "react";
 import { Flag, Lock } from "lucide-react";
+import { useT } from "@/lib/i18n/LocaleProvider";
+import type { MessageKey } from "@/lib/i18n/t";
 import type { Purpose } from "@/lib/types";
 import { cn, daysUntil, titleCase } from "@/lib/utils";
 
@@ -15,18 +16,30 @@ import { cn, daysUntil, titleCase } from "@/lib/utils";
  */
 
 const SKELETON_ROWS = [
-  { title: "Ground rules", milestone: false },
-  { title: "Core mechanics", milestone: true },
-  { title: "Applying it under pressure", milestone: false },
-  { title: "Depth and connections", milestone: true },
-  { title: "Bringing it together", milestone: false },
-];
+  { titleKey: "preview.rows.groundRules", milestone: false },
+  { titleKey: "preview.rows.coreMechanics", milestone: true },
+  { titleKey: "preview.rows.applyingUnderPressure", milestone: false },
+  { titleKey: "preview.rows.depthAndConnections", milestone: true },
+  { titleKey: "preview.rows.bringingItTogether", milestone: false },
+] as const;
 
-const PACING: Record<Purpose, { label: string; sessions: string }> = {
-  exam: { label: "Tight cycles, heavy recall", sessions: "5 sessions a week · 35 min" },
-  project: { label: "Deep where you'll build", sessions: "3 sessions a week · 45 min" },
-  job: { label: "Front-loads the assumed basics", sessions: "4 sessions a week · 30 min" },
-  curiosity: { label: "Unhurried, follows your interest", sessions: "2 sessions a week · 25 min" },
+const PACING: Record<Purpose, { labelKey: MessageKey; sessionsKey: MessageKey }> = {
+  exam: {
+    labelKey: "preview.pacing.exam.label",
+    sessionsKey: "preview.pacing.exam.sessions",
+  },
+  project: {
+    labelKey: "preview.pacing.project.label",
+    sessionsKey: "preview.pacing.project.sessions",
+  },
+  job: {
+    labelKey: "preview.pacing.job.label",
+    sessionsKey: "preview.pacing.job.sessions",
+  },
+  curiosity: {
+    labelKey: "preview.pacing.curiosity.label",
+    sessionsKey: "preview.pacing.curiosity.sessions",
+  },
 };
 
 export function RoadmapPreview({
@@ -44,6 +57,7 @@ export function RoadmapPreview({
   purpose: Purpose | null;
   deadline?: string;
 }) {
+  const { t, tp } = useT();
   const hasTopic = step >= 2 && topic.trim().length > 2;
   const rowsVisible = step === 0 ? 0 : step === 1 ? 2 : SKELETON_ROWS.length;
   const days = daysUntil(deadline);
@@ -63,7 +77,7 @@ export function RoadmapPreview({
         {/* card header */}
         <div className="flex items-start justify-between gap-3 border-b border-line px-4 py-3.5">
           <div className="min-w-0">
-            <p className="label-data text-ink-faint">Your roadmap</p>
+            <p className="label-data text-ink-faint">{t("preview.eyebrow")}</p>
             {hasTopic ? (
               <p className="animate-fade mt-1 truncate text-[15px] leading-snug font-semibold tracking-tight text-ink">
                 {titleCase(topic).slice(0, 42)}
@@ -76,7 +90,7 @@ export function RoadmapPreview({
             <Lock className="mt-0.5 size-3.5 shrink-0 text-ink-faint" />
           ) : (
             <span className="label-data shrink-0 tabular-nums text-ink-faint">
-              {rowsVisible} topics
+              {tp("preview.topicsCount", rowsVisible)}
             </span>
           )}
         </div>
@@ -90,7 +104,7 @@ export function RoadmapPreview({
               level > 0 ? Math.max(0, Math.round((level - 1) * 2.2) - i * 2) : 0;
             return (
               <li
-                key={row.title}
+                key={row.titleKey}
                 className={cn(
                   "flex items-center gap-3 px-4 py-3 transition-all duration-500",
                   visible ? "opacity-100" : "translate-y-1 opacity-25",
@@ -104,7 +118,7 @@ export function RoadmapPreview({
                   {visible && step >= 2 ? (
                     <span className="flex items-center gap-1.5">
                       <span className="truncate text-[13px] text-ink-soft">
-                        {row.title}
+                        {t(row.titleKey)}
                       </span>
                       {row.milestone && (
                         <Flag className="size-2.5 shrink-0 text-gold-500" />
@@ -147,11 +161,11 @@ export function RoadmapPreview({
             <div className="animate-fade space-y-2">
               <div className="flex items-baseline justify-between gap-2">
                 <span className="label-data text-gold-700">
-                  {PACING[purpose].sessions}
+                  {t(PACING[purpose].sessionsKey)}
                 </span>
                 {days !== null && days > 0 && (
                   <span className="label-data tabular-nums text-ink-faint">
-                    {days} days left
+                    {tp("preview.daysLeft", days)}
                   </span>
                 )}
               </div>
@@ -162,13 +176,13 @@ export function RoadmapPreview({
                 />
               </div>
               <p className="text-[13px] leading-snug text-ink-soft">
-                {PACING[purpose].label}
+                {t(PACING[purpose].labelKey)}
               </p>
             </div>
           ) : (
             <div className="flex items-center gap-2">
               <span className="h-1 flex-1 rounded-full bg-line" />
-              <span className="label-data text-ink-faint">pacing</span>
+              <span className="label-data text-ink-faint">{t("preview.pacingLabel")}</span>
             </div>
           )}
         </div>
@@ -178,12 +192,12 @@ export function RoadmapPreview({
 
       <figcaption className="text-[13px] leading-snug text-ink-faint">
         {step === 0
-          ? "Topics land here once you tell BenkyoAI what you're learning."
+          ? t("preview.captions.brand")
           : step === 1
-            ? "Structure first — your material reshapes it in the next step."
+            ? t("preview.captions.topic")
             : step === 2
-              ? "Ticks show mastery. Your answers set where the first ones start."
-              : "Purpose sets the pace. A deadline tightens it."}
+              ? t("preview.captions.calibration")
+              : t("preview.captions.purpose")}
       </figcaption>
     </figure>
   );
@@ -194,11 +208,12 @@ export function RoadmapPreview({
  * doesn't go in a review pile, it comes back inside later lessons until it holds.
  */
 export function MemoryStrip({ active }: { active: boolean }) {
+  const { t } = useT();
   const stages = [
-    { label: "missed", tone: "clay" as const, day: "day 1" },
-    { label: "blended back in", tone: "maize" as const, day: "day 3" },
-    { label: "held, unaided", tone: "sage" as const, day: "day 9" },
-  ];
+    { labelKey: "preview.memory.missed", tone: "clay" as const },
+    { labelKey: "preview.memory.blended", tone: "maize" as const },
+    { labelKey: "preview.memory.held", tone: "sage" as const },
+  ] as const;
 
   const TONE = {
     clay: "border-clay-100 bg-clay-50 text-clay-700",
@@ -208,10 +223,10 @@ export function MemoryStrip({ active }: { active: boolean }) {
 
   return (
     <div className="mt-6 border-t border-line pt-5">
-      <p className="label-data text-ink-faint">One mistake, over three sessions</p>
+      <p className="label-data text-ink-faint">{t("preview.memory.title")}</p>
       <ol className="mt-3 flex items-center gap-1.5">
         {stages.map((stage, i) => (
-          <li key={stage.label} className="flex min-w-0 items-center gap-1.5">
+          <li key={stage.labelKey} className="flex min-w-0 items-center gap-1.5">
             <span
               className={cn(
                 "label-data inline-flex items-center gap-1.5 rounded-full border px-2 py-1 transition-all duration-700",
@@ -230,7 +245,7 @@ export function MemoryStrip({ active }: { active: boolean }) {
                       : "bg-sage-500",
                 )}
               />
-              <span className="truncate">{stage.label}</span>
+              <span className="truncate">{t(stage.labelKey)}</span>
             </span>
             {i < stages.length - 1 && (
               <span className="h-px w-3 shrink-0 bg-line-strong" aria-hidden />
@@ -247,6 +262,7 @@ export function MemoryStrip({ active }: { active: boolean }) {
  * Inspired by Uiverse.io/Smit-Prajapati — adapted to BenkyoAI's gold/green palette.
  */
 function BrandCard() {
+  const { t } = useT();
   const [hovered, setHovered] = useState(false);
 
   const circleBase = (width: string, background: string, delay: string, zNormal: number, zHover: number): React.CSSProperties => ({
@@ -452,7 +468,7 @@ function BrandCard() {
                   marginTop: "2px",
                 }}
               >
-                Study smarter
+                {t("preview.brand.tagline")}
               </span>
             </div>
           </div>
@@ -460,7 +476,7 @@ function BrandCard() {
       </div>
 
       <figcaption className="text-[13px] leading-snug text-ink-faint text-center">
-        Topics land here once you tell BenkyoAI what you&apos;re learning.
+        {t("preview.captions.brand")}
       </figcaption>
     </figure>
   );

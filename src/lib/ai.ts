@@ -66,15 +66,20 @@ export function getGeminiClient(apiKey?: string) {
 // Model resolution
 //
 // We cannot trust ai.models.list() to tell us what's callable — Google lists
-// models that are "no longer available to new users" without flagging them.
+// models that are "no longer available to new users" without flagging them,
+// and also lists specialized non-text models (e.g. TTS, image, realtime).
 // Strategy:
-//   1. Fetch the model list and filter by supportedActions includes generateContent
-//   2. Score each model (prefer flash, prefer higher version)
-//   3. Try them in order until one responds — cache that winner
+//   1. Filter out specialized non-text modalities (-tts, image, embedding, audio, etc.)
+//   2. Score text models (prefer flash, prefer stable & higher version)
+//   3. Try candidates in prioritized order on the actual request, caching the winner
 // ---------------------------------------------------------------------------
 
 /** In-process cache: key-fingerprint → verified working model name */
 const modelCache = new Map<string, string>();
+
+/** Cache discovered candidate model list to avoid listing models on every call */
+const candidateListCache = new Map<string, { list: string[]; timestamp: number }>();
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 /** Returns true for HTTP errors that definitely mean "wrong key" */
 function isAuthError(err: any): boolean {
@@ -88,17 +93,24 @@ function isAuthError(err: any): boolean {
   );
 }
 
-/** Returns true when a model exists in the list but is not callable */
-function isModelGone(err: any): boolean {
-  const status: number =
-    err?.status ?? err?.statusCode ?? err?.response?.status ?? err?.httpStatus ?? 0;
-  const msg = (err?.message ?? '').toLowerCase();
-  return (
-    status === 404 ||
-    msg.includes('no longer available') ||
-    msg.includes('not found') ||
-    msg.includes('deprecated')
-  );
+/** Check if a model is suitable for general text/JSON generation */
+export function isTextGenerationModel(name: string): boolean {
+  const lower = name.toLowerCase();
+  if (!lower.startsWith('gemini')) return false;
+  if (
+    lower.includes('-tts') ||
+    lower.includes('image') ||
+    lower.includes('imagen') ||
+    lower.includes('embedding') ||
+    lower.includes('realtime') ||
+    lower.includes('live') ||
+    lower.includes('audio') ||
+    lower.includes('robotics') ||
+    lower.includes('computer-use')
+  ) {
+    return false;
+  }
+  return true;
 }
 
 /**
@@ -109,93 +121,99 @@ function scoreModel(name: string): number {
   let score = 0;
   // Prefer flash (fast & cheap) over pro for most tasks
   if (name.includes('flash')) score += 10;
-  if (name.includes('lite')) score -= 3;   // lite is cheaper but less capable
+  if (name.includes('lite')) score -= 3; // lite is cheaper but less capable
   // Prefer higher version numbers
   const versionMatch = name.match(/gemini-(\d+(?:\.\d+)?)/);
   if (versionMatch) score += parseFloat(versionMatch[1]) * 2;
   return score;
 }
 
+/** Built-in fallback candidates in priority order */
+const HARDCODED_FALLBACKS = [
+  'gemini-2.5-flash',
+  'gemini-2.5-pro',
+  'gemini-2.5-flash-lite',
+  'gemini-2.0-flash',
+  'gemini-2.0-pro',
+  'gemini-1.5-flash',
+  'gemini-1.5-pro',
+];
+
 /**
- * Discover and verify the best working model for this key.
- * Results are cached for the process lifetime.
+ * Discover and sort candidate models for this key.
  */
-async function resolveWorkingModel(apiKey?: string): Promise<string> {
+async function getModelCandidates(apiKey?: string, requestedModel?: string): Promise<string[]> {
   const cacheKey = apiKey ? apiKey.slice(-8) : '__env__';
-  const cached = modelCache.get(cacheKey);
-  if (cached) return cached;
+  const now = Date.now();
+  let baseCandidates: string[] = [];
 
-  const ai = getGeminiClient(apiKey);
-
-  // Step 1: Get the model list and filter to those that say they support generateContent
-  let candidates: string[] = [];
-  try {
-    const pager = await ai.models.list();
-    const listed: string[] = [];
-    for await (const m of pager) {
-      if (!m.name) continue;
-      const clean = m.name.replace(/^models\//, '');
-      if (!clean.startsWith('gemini')) continue;
-      // Only include if supportedActions lists generateContent (or if field is absent)
-      const actions: string[] = (m as any).supportedActions ?? [];
-      if (actions.length === 0 || actions.some((a: string) => a.toLowerCase().includes('generate'))) {
-        listed.push(clean);
-      }
-    }
-    // Sort: highest score first
-    candidates = listed.sort((a, b) => scoreModel(b) - scoreModel(a));
-    console.log(`[ai] Models from API (${candidates.length}):`, candidates.slice(0, 8).join(', '));
-  } catch (err) {
-    console.warn('[ai] Could not fetch model list, using built-in candidates:', err);
-  }
-
-  // Step 2: Append hardcoded fallbacks that aren't already in the list
-  const hardcoded = [
-    'gemini-2.5-pro',
-    'gemini-2.5-flash',
-    'gemini-2.5-flash-lite',
-    'gemini-2.0-pro',
-    'gemini-2.0-flash',
-    'gemini-2.0-flash-lite',
-    'gemini-1.5-flash',
-    'gemini-1.5-pro',
-    'gemini-pro',
-  ];
-  for (const h of hardcoded) {
-    if (!candidates.includes(h)) candidates.push(h);
-  }
-
-  // Step 3: Try each candidate until one actually works
-  for (const candidate of candidates) {
+  const cached = candidateListCache.get(cacheKey);
+  if (cached && (now - cached.timestamp < CACHE_TTL_MS)) {
+    baseCandidates = cached.list;
+  } else {
     try {
-      const probe = await ai.models.generateContent({ model: candidate, contents: 'hi' });
-      recordUsage(candidate, probe.usageMetadata);
-      console.log(`[ai] ✓ Working model found: ${candidate}`);
-      modelCache.set(cacheKey, candidate);
-      return candidate;
-    } catch (err: any) {
-      if (isAuthError(err)) throw err;   // Key is wrong — stop immediately
-      if (isModelGone(err)) {
-        console.log(`[ai] ✗ ${candidate}: unavailable`);
-        continue;
+      const ai = getGeminiClient(apiKey);
+      const pager = await ai.models.list();
+      const listed: string[] = [];
+      for await (const m of pager) {
+        if (!m.name) continue;
+        const clean = m.name.replace(/^models\//, '');
+        if (!isTextGenerationModel(clean)) continue;
+        const actions: string[] = (m as any).supportedActions ?? [];
+        if (actions.length === 0 || actions.some((a: string) => a.toLowerCase().includes('generate'))) {
+          listed.push(clean);
+        }
       }
-      // Rate limit / network — model may still work, try next anyway
-      console.warn(`[ai] ? ${candidate}: ${err?.message?.slice(0, 60)}`);
+      baseCandidates = listed.sort((a, b) => scoreModel(b) - scoreModel(a));
+      candidateListCache.set(cacheKey, { list: baseCandidates, timestamp: now });
+      console.log(`[ai] Discovered text models (${baseCandidates.length}):`, baseCandidates.slice(0, 8).join(', '));
+    } catch (err) {
+      console.warn('[ai] Could not fetch model list, using built-in candidates:', err);
     }
   }
 
-  throw new Error(
-    'No working Gemini model found for this key. ' +
-    'Ensure the Gemini API is enabled for your project at ' +
-    'https://aistudio.google.com/apikey and your key has the correct permissions.',
-  );
+  const pool = [...baseCandidates];
+  for (const h of HARDCODED_FALLBACKS) {
+    if (!pool.includes(h)) pool.push(h);
+  }
+
+  // Priority order:
+  // 1. Explicitly requested model (if any)
+  // 2. Previously verified working model in cache (if any)
+  // 3. Candidate pool sorted by score
+  const result: string[] = [];
+  if (requestedModel && isTextGenerationModel(requestedModel)) {
+    result.push(requestedModel);
+  }
+  const working = modelCache.get(cacheKey);
+  if (working && !result.includes(working)) {
+    result.push(working);
+  }
+  for (const c of pool) {
+    if (!result.includes(c)) {
+      result.push(c);
+    }
+  }
+
+  return result;
 }
+
+/** Returns true for transient errors where a retry may succeed */
+function isTransientError(err: any): boolean {
+  const status: number =
+    err?.status ?? err?.statusCode ?? err?.response?.status ?? err?.httpStatus ?? 0;
+  return status === 503 || status === 429 || status === 500;
+}
+
+/** Sleep helper */
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 /**
  * Generate a text response using Gemini.
  *
- * The model parameter is a hint — if the specified model 404s, the function
- * automatically discovers a working one and retries exactly once.
+ * For each candidate model, retries transient errors (503 high demand, 429 quota)
+ * with exponential backoff before moving to the next candidate. This handles
+ * the common case where Gemini models experience brief demand spikes.
  */
 export async function generateGeminiResponse(
   prompt: string,
@@ -206,25 +224,73 @@ export async function generateGeminiResponse(
   const ai = getGeminiClient(apiKey);
   const cacheKey = apiKey ? apiKey.slice(-8) : '__env__';
 
-  const firstModel = model ?? await resolveWorkingModel(apiKey);
+  const candidates = await getModelCandidates(apiKey, model);
+  let lastError: any = null;
+  const tried = new Set<string>();
 
-  async function attempt(m: string): Promise<string> {
-    const response = await ai.models.generateContent({ model: m, contents: prompt, config });
-    recordUsage(m, response.usageMetadata);
-    if (!response.text) throw new Error('No response text returned from Gemini.');
-    return response.text;
+  for (const candidate of candidates) {
+    if (tried.has(candidate)) continue;
+    tried.add(candidate);
+
+    // Each candidate gets up to 3 attempts with exponential backoff
+    const MAX_RETRIES = 3;
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      try {
+        const response = await ai.models.generateContent({ model: candidate, contents: prompt, config });
+        recordUsage(candidate, response.usageMetadata);
+        if (!response.text) throw new Error('No response text returned from Gemini.');
+
+        // Successfully generated: cache this model for future calls
+        modelCache.set(cacheKey, candidate);
+        return response.text;
+      } catch (err: any) {
+        if (isAuthError(err)) throw err;
+
+        lastError = err;
+
+        if (isTransientError(err) && attempt < MAX_RETRIES - 1) {
+          // Transient error: wait and retry the same model
+          const delayMs = 1000 * Math.pow(2, attempt); // 1s, 2s
+          console.warn(
+            `[ai] Model ${candidate} transient error (${err?.status ?? '?'}), ` +
+            `retry ${attempt + 1}/${MAX_RETRIES - 1} in ${delayMs}ms...`,
+          );
+          await sleep(delayMs);
+          continue;
+        }
+
+        // Non-transient or final retry exhausted: move to next candidate
+        console.warn(
+          `[ai] Model ${candidate} failed after ${attempt + 1} attempt(s) ` +
+          `(${err?.message?.slice(0, 80) ?? err}), trying next candidate...`,
+        );
+
+        // Bust cache if this was the cached model
+        if (modelCache.get(cacheKey) === candidate) {
+          modelCache.delete(cacheKey);
+        }
+        break; // exit retry loop, move to next candidate
+      }
+    }
+
+    // Limit how many distinct models we try to avoid excessive total latency
+    if (tried.size >= 8) {
+      break;
+    }
   }
 
-  try {
-    return await attempt(firstModel);
-  } catch (err: any) {
-    if (isAuthError(err)) throw err;
-    // Model failed or retired (e.g. 503 high demand, 429, or 404) — bust cache and resolve a new one
-    console.warn(`[ai] Model ${firstModel} failed (${err?.message?.slice(0, 80)}), re-resolving fallback…`);
-    modelCache.delete(cacheKey);
-    const fallback = await resolveWorkingModel(apiKey);
-    return attempt(fallback);
+  throw lastError ?? new Error('No working Gemini model found for this key.');
+}
+
+/** Strip markdown code blocks before parsing JSON */
+function cleanJsonText(raw: string): string {
+  let cleaned = raw.trim();
+  if (cleaned.startsWith('```json')) {
+    cleaned = cleaned.replace(/^```json\s*/i, '').replace(/\s*```$/, '');
+  } else if (cleaned.startsWith('```')) {
+    cleaned = cleaned.replace(/^```\s*/, '').replace(/\s*```$/, '');
   }
+  return cleaned.trim();
 }
 
 /**
@@ -247,7 +313,7 @@ export async function generateGeminiJSON<T extends z.ZodType>(
     responseMimeType: 'application/json',
     responseJsonSchema,
   });
-  return schema.parse(JSON.parse(text));
+  return schema.parse(JSON.parse(cleanJsonText(text)));
 }
 
 // ---------------------------------------------------------------------------
@@ -285,7 +351,7 @@ export async function generateText(prompt: string, apiKey?: string): Promise<str
   const ctx = currentContext();
   const provider = adapterFor(ctx);
   if (provider && ctx && apiKey) return viaAdapter(provider, ctx, apiKey, prompt);
-  return generateGeminiResponse(prompt, apiKey);
+  return generateGeminiResponse(prompt, apiKey, ctx?.model);
 }
 
 export async function generateJSON<T extends z.ZodType>(
@@ -295,7 +361,7 @@ export async function generateJSON<T extends z.ZodType>(
 ): Promise<z.infer<T>> {
   const ctx = currentContext();
   const provider = adapterFor(ctx);
-  if (!provider || !ctx || !apiKey) return generateGeminiJSON(prompt, schema, apiKey);
+  if (!provider || !ctx || !apiKey) return generateGeminiJSON(prompt, schema, apiKey, ctx?.model);
 
   // OpenAI, Anthropic tool inputs and Ollama all want an object at the root,
   // so array-shaped contracts travel wrapped as { result: [...] }.
@@ -320,12 +386,15 @@ export async function listGeminiModels(apiKey?: string): Promise<string[]> {
     for await (const m of pager) {
       if (m.name) {
         const cleanName = m.name.replace(/^models\//, '');
-        if (cleanName.startsWith('gemini')) models.push(cleanName);
+        if (isTextGenerationModel(cleanName)) {
+          models.push(cleanName);
+        }
       }
     }
-    return models.length > 0 ? Array.from(new Set(models)) : [];
+    const sorted = Array.from(new Set(models)).sort((a, b) => scoreModel(b) - scoreModel(a));
+    return sorted.length > 0 ? sorted : HARDCODED_FALLBACKS;
   } catch (err) {
     console.warn('[ai] Could not fetch model list:', err);
-    return [];
+    return HARDCODED_FALLBACKS;
   }
 }

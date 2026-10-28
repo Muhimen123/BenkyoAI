@@ -174,10 +174,10 @@ function OnboardingFlow() {
   }
 
   const current = building ? 3 : step;
-  // Once a key is connected that step drops out of the sequence entirely, so the
-  // progress bar and the step counter stop advertising a step you can't revisit.
-  const flowSteps = connection ? STEPS.slice(1) : STEPS;
-  const flowIndex = connection ? current - 1 : current;
+  // In normal onboarding, the flow consistently has 4 steps: key -> topic -> level -> purpose.
+  // Only when adding another roadmap from the dashboard (?new=1) is the key already done (3 steps).
+  const flowSteps = startingNew ? STEPS.slice(1) : STEPS;
+  const flowIndex = startingNew ? current - 1 : current;
 
   return (
     <div className="relative min-h-dvh overflow-hidden bg-paper text-ink">
